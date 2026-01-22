@@ -1,0 +1,28 @@
+{
+  "name": "drone-georeferencing",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "module",
+  "dependencies": {
+    "@turf/distance": "^7.3.2",
+    "@turf/helpers": "^7.3.2",
+    "@turf/rhumb-destination": "^7.3.2",
+    "jszip": "^3.10.1",
+    "leaflet": "^1.9.4",
+    "onnxruntime-web": "^1.23.2",
+    "papaparse": "^5.5.3"
+  },
+  "devDependencies": {
+    "vite": "^7.3.1"
+  }
+}
