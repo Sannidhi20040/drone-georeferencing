@@ -1,0 +1,322 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>🚁 Drone Georeferencing System</title>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: #0f172a;
+            color: #e2e8f0;
+            display: flex;
+            height: 100vh;
+            overflow: hidden;
+        }
+
+        .sidebar {
+            width: 320px;
+            background: #1e293b;
+            padding: 20px;
+            overflow-y: auto;
+            box-shadow: 2px 0 10px rgba(0,0,0,0.3);
+        }
+
+        .sidebar h1 {
+            font-size: 20px;
+            margin-bottom: 20px;
+            color: #a3e635;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .section {
+            margin-bottom: 25px;
+        }
+
+        .section h2 {
+            font-size: 15px;
+            color: #cbd5e1;
+            margin-bottom: 12px;
+        }
+
+        .upload-box {
+            border: 2px dashed #475569;
+            border-radius: 8px;
+            padding: 15px;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.2s;
+            background: #0f172a;
+        }
+
+        .upload-box:hover {
+            border-color: #a3e635;
+            background: #1e293b;
+        }
+
+        .upload-box input {
+            display: none;
+        }
+
+        .file-name {
+            font-size: 12px;
+            color: #94a3b8;
+            margin-top: 8px;
+            word-break: break-all;
+        }
+
+        .file-name.selected {
+            color: #a3e635;
+        }
+
+        #processBtn {
+            width: 100%;
+            padding: 15px;
+            background: linear-gradient(135deg, #22c55e, #16a34a);
+            color: white;
+            border: none;
+            border-radius: 8px;
+            font-size: 15px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s;
+            margin-top: 15px;
+        }
+
+        #processBtn:hover:not(:disabled) {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(34, 197, 94, 0.4);
+        }
+
+        #processBtn:disabled {
+            background: #334155;
+            cursor: not-allowed;
+            opacity: 0.6;
+        }
+
+        .info-box {
+            background: #0f172a;
+            padding: 12px;
+            border-radius: 6px;
+            font-size: 12px;
+            color: #a3e635;
+            margin-top: 15px;
+        }
+
+        #statsSection {
+            background: #0f172a;
+            padding: 15px;
+            border-radius: 8px;
+            margin-top: 15px;
+        }
+
+        #statsSection.hidden {
+            display: none;
+        }
+
+        .stat-item {
+            display: flex;
+            justify-content: space-between;
+            padding: 8px 0;
+            border-bottom: 1px solid #334155;
+        }
+
+        .stat-item:last-child {
+            border-bottom: none;
+        }
+
+        .stat-value {
+            color: #a3e635;
+            font-weight: 600;
+        }
+
+        .settings-group {
+            margin: 15px 0;
+        }
+
+        .settings-group label {
+            display: flex;
+            justify-content: space-between;
+            font-size: 13px;
+            margin-bottom: 8px;
+            color: #cbd5e1;
+        }
+
+        .settings-group input[type="range"] {
+            width: 100%;
+            height: 6px;
+            border-radius: 3px;
+            background: #334155;
+            outline: none;
+        }
+
+        #map {
+            flex: 1;
+            height: 100vh;
+        }
+
+        .progress-container {
+            background: #0f172a;
+            padding: 15px;
+            border-radius: 8px;
+            margin-top: 15px;
+            display: none;
+        }
+
+        .progress-container.active {
+            display: block;
+        }
+
+        .progress-bar {
+            width: 100%;
+            height: 8px;
+            background: #334155;
+            border-radius: 4px;
+            overflow: hidden;
+        }
+
+        .progress-fill {
+            height: 100%;
+            background: linear-gradient(90deg, #22c55e, #16a34a);
+            width: 0%;
+            transition: width 0.3s ease;
+        }
+
+        .progress-text {
+            color: #a3e635;
+            font-size: 12px;
+            margin-top: 8px;
+            text-align: center;
+        }
+
+        .export-controls {
+            display: flex;
+            gap: 10px;
+            margin-top: 15px;
+        }
+
+        .export-btn {
+            flex: 1;
+            padding: 10px;
+            background: #1e293b;
+            color: #a3e635;
+            border: 1px solid #334155;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 12px;
+            transition: all 0.2s;
+        }
+
+        .export-btn:hover {
+            background: #334155;
+            transform: translateY(-1px);
+        }
+    </style>
+  <script type="module" crossorigin src="/drone-georeferencing/assets/index-PHJG71OW.js"></script>
+</head>
+<body>
+    <div class="sidebar">
+        <h1>🚁 Drone Georeferencing System</h1>
+
+        <div class="section">
+            <h2>1. Upload Drone Video</h2>
+            <label for="videoInput" class="upload-box">
+                <div>📹 Click to select video file</div>
+                <input type="file" id="videoInput" accept="video/*">
+                <div id="videoFileName" class="file-name">No file selected</div>
+            </label>
+        </div>
+
+        <div class="section">
+            <h2>2. Upload Flight Log (CSV)</h2>
+            <label for="flightLogInput" class="upload-box">
+                <div>📊 Click to select flight log</div>
+                <input type="file" id="flightLogInput" accept=".csv">
+                <div id="logFileName" class="file-name">No file selected</div>
+            </label>
+        </div>
+
+        <button id="processBtn" disabled>🚀 Process Video</button>
+
+        <div class="info-box">
+            💡 Using OpenStreetMap (free alternative to Mapbox)
+        </div>
+
+        <!-- Progress Bar -->
+        <div id="progressContainer" class="progress-container">
+            <div class="progress-bar">
+                <div id="progressFill" class="progress-fill"></div>
+            </div>
+            <div id="progressText" class="progress-text">Processing: 0%</div>
+        </div>
+
+        <!-- Statistics -->
+        <div id="statsSection" class="hidden">
+            <h2>📊 Detection Statistics</h2>
+            <div class="stat-item">
+                <span>🚗 Small Vehicles:</span>
+                <span class="stat-value" id="statSmallVehicles">0</span>
+            </div>
+            <div class="stat-item">
+                <span>🚚 Large Vehicles:</span>
+                <span class="stat-value" id="statLargeVehicles">0</span>
+            </div>
+            <div class="stat-item">
+                <span>🚶 Pedestrians:</span>
+                <span class="stat-value" id="statHumans">0</span>
+            </div>
+            <div class="stat-item">
+                <span>📍 Total Detections:</span>
+                <span class="stat-value" id="statTotal">0</span>
+            </div>
+        </div>
+
+        <!-- Export Buttons -->
+        <div id="exportControls" class="export-controls" style="display: none;">
+            <button id="exportGeoJSON" class="export-btn">📥 Export GeoJSON</button>
+            <button id="exportCSV" class="export-btn">📊 Export CSV</button>
+        </div>
+
+        <!-- Settings -->
+        <div class="section">
+            <h2>⚙️ Detection Settings</h2>
+            
+            <div class="settings-group">
+                <label>
+                    <span>Confidence Threshold</span>
+                    <span id="confValue">0.50</span>
+                </label>
+                <input type="range" id="confThreshold" min="0.1" max="0.9" step="0.05" value="0.5">
+            </div>
+
+            <div class="settings-group">
+                <label>
+                    <span>Clustering Distance (m)</span>
+                    <span id="clusterValue">5</span>
+                </label>
+                <input type="range" id="clusterDistance" min="1" max="20" step="1" value="5">
+            </div>
+
+            <div class="settings-group">
+                <label>
+                    <span>Min Detections to Show</span>
+                    <span id="minDetValue">2</span>
+                </label>
+                <input type="range" id="minDetections" min="1" max="10" step="1" value="2">
+            </div>
+        </div>
+    </div>
+
+    <div id="map"></div>
+
+</body>
+</html>
