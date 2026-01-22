@@ -1,8 +1,10 @@
 # 🚁 Drone Georeferencing System
 
+**🌐 [Live Demo](https://sannidhi20040.github.io/drone-georeferencing/)** | **📂 [GitHub](https://github.com/Sannidhi20040/drone-georeferencing)**
+
 Real-time vehicle and pedestrian detection from drone footage with GPS georeferencing and interactive mapping.
 
-![System Demo](https://img.shields.io/badge/Status-Production%20Ready-success)
+![System Demo](https://img.shields.io/badge/Status-Live-brightgreen)
 ![ML](https://img.shields.io/badge/ML-YOLOv8-blue)
 ![Map](https://img.shields.io/badge/Map-Leaflet.js-green)
 
@@ -17,8 +19,13 @@ Real-time vehicle and pedestrian detection from drone footage with GPS georefere
 
 ## 📊 Model Performance
 
-- **mAP50**: 0.583
-- **mAP50-95**: 0.366
+| Metric | Value |
+|--------|-------|
+| mAP50 | 0.583 |
+| mAP50-95 | 0.366 |
+| Small Vehicle (mAP50) | 0.764 |
+| Large Vehicle (mAP50) | 0.713 |
+| Pedestrian (mAP50) | 0.272 |
 
 ## 🚀 Quick Start
 
@@ -31,11 +38,16 @@ npm run dev
 
 ## 🛠️ Tech Stack
 
-- Vanilla JavaScript + Vite
-- YOLOv8 + ONNX Runtime
-- Leaflet.js + OpenStreetMap
-- Custom GPS transformation algorithms
+- **Frontend**: Vanilla JavaScript, Vite, Leaflet.js
+- **ML/CV**: YOLOv8, ONNX Runtime Web
+- **Geospatial**: Custom FOV transformation, PapaParse
 
 ## 👨‍💻 Author
 
-Sannidhi Math - BTech Mechatronics Engineering, MIT Manipal
+**Sannidhi Math**  
+BTech Mechatronics Engineering, MIT Manipal  
+[GitHub](https://github.com/Sannidhi20040) | [LinkedIn](https://linkedin.com/in/sannidhi-math)
+
+## 📝 License
+
+MIT License - see [LICENSE](LICENSE) file for details
