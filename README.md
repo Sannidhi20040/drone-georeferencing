@@ -46,7 +46,7 @@ npm run dev
 
 **Sannidhi Math**  
 BTech Mechatronics Engineering, MIT Manipal  
-[GitHub](https://github.com/Sannidhi20040) | [LinkedIn](https://linkedin.com/in/sannidhi-math)
+[GitHub](https://github.com/Sannidhi20040) | [LinkedIn]([https://www.linkedin.com/in/sannidhi-math-2b1aa3202/])
 
 ## 📝 License
 
