@@ -1,0 +1,22 @@
+# Dependencies
+node_modules/
+package-lock.json
+
+# Build outputs
+dist/
+*.log
+
+# Model files (too large)
+public/models/*.onnx
+public/models/*.pt
+
+# Test videos
+*.mp4
+*.mov
+
+# IDE
+.vscode/
+.DS_Store
+
+# Environment
+.env
