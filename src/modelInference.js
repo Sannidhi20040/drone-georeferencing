@@ -73,32 +73,33 @@ class ModelInference {
     }
     
     preprocessImage(imageData) {
-        const { width, height, data } = imageData;
         const targetSize = 640;
-        
-        // Create input tensor [1, 3, 640, 640]
-        const input = new Float32Array(1 * 3 * targetSize * targetSize);
-        
-        // Calculate resize ratios
-        const scaleX = width / targetSize;
-        const scaleY = height / targetSize;
-        
-        // Resize and normalize to [0, 1]
-        for (let c = 0; c < 3; c++) {
-            for (let y = 0; y < targetSize; y++) {
-                for (let x = 0; x < targetSize; x++) {
-                    const srcX = Math.min(Math.floor(x * scaleX), width - 1);
-                    const srcY = Math.min(Math.floor(y * scaleY), height - 1);
-                    const srcIdx = (srcY * width + srcX) * 4;
-                    
-                    // RGB channels, normalize to [0, 1]
-                    const value = data[srcIdx + c] / 255.0;
-                    const dstIdx = c * targetSize * targetSize + y * targetSize + x;
-                    input[dstIdx] = value;
-                }
-            }
+
+        // Resize via canvas (hardware-accelerated, antialiased) instead of a
+        // manual nearest-neighbor sampling loop over every output pixel.
+        const srcCanvas = document.createElement('canvas');
+        srcCanvas.width = imageData.width;
+        srcCanvas.height = imageData.height;
+        srcCanvas.getContext('2d').putImageData(imageData, 0, 0);
+
+        const dstCanvas = document.createElement('canvas');
+        dstCanvas.width = targetSize;
+        dstCanvas.height = targetSize;
+        const dstCtx = dstCanvas.getContext('2d');
+        dstCtx.drawImage(srcCanvas, 0, 0, targetSize, targetSize);
+        const resized = dstCtx.getImageData(0, 0, targetSize, targetSize).data;
+
+        // CHW float32, normalized to [0, 1]
+        const pixelCount = targetSize * targetSize;
+        const input = new Float32Array(3 * pixelCount);
+
+        for (let i = 0; i < pixelCount; i++) {
+            const srcIdx = i * 4;
+            input[i] = resized[srcIdx] / 255.0;                       // R
+            input[pixelCount + i] = resized[srcIdx + 1] / 255.0;       // G
+            input[2 * pixelCount + i] = resized[srcIdx + 2] / 255.0;   // B
         }
-        
+
         return new ort.Tensor('float32', input, [1, 3, targetSize, targetSize]);
     }
     
