@@ -13,14 +13,16 @@ class ProcessingPipeline {
         this.geoConverter = null;
         this.detections = [];
         this.markers = [];
+        this.flightPathLine = null;
     }
-    
+
     async initialize(videoFile, flightLogFile, config = {}) {
         console.log('🚀 Initializing processing pipeline...');
-        
+
         // Load flight log
         await this.flightLogParser.parseCSV(flightLogFile);
-        
+        this.drawFlightPath();
+
         // Load video
         const videoInfo = await this.videoProcessor.loadVideo(videoFile);
         
@@ -115,11 +117,14 @@ class ProcessingPipeline {
                 );
                 
                 if (distance < maxDistance && det.class === cluster.class) {
-                    // Merge into cluster
-                    cluster.count++;
-                    cluster.confidence = (cluster.confidence + det.confidence) / 2;
-                    cluster.latitude = (cluster.latitude + det.latitude) / 2;
-                    cluster.longitude = (cluster.longitude + det.longitude) / 2;
+                    // Merge into cluster as a running weighted average, so the
+                    // centroid converges to the true mean instead of drifting
+                    // toward whichever detection happened to merge last.
+                    const newCount = cluster.count + 1;
+                    cluster.latitude = (cluster.latitude * cluster.count + det.latitude) / newCount;
+                    cluster.longitude = (cluster.longitude * cluster.count + det.longitude) / newCount;
+                    cluster.confidence = (cluster.confidence * cluster.count + det.confidence) / newCount;
+                    cluster.count = newCount;
                     merged = true;
                     break;
                 }
@@ -151,15 +156,47 @@ class ProcessingPipeline {
         return R * c;
     }
     
+    drawFlightPath() {
+        if (this.flightPathLine) {
+            this.map.removeLayer(this.flightPathLine);
+            this.flightPathLine = null;
+        }
+
+        const points = this.flightLogParser.telemetryData.map(t => [t.lat, t.lon]);
+        if (points.length < 2) return;
+
+        this.flightPathLine = L.polyline(points, {
+            color: '#38bdf8',
+            weight: 2,
+            opacity: 0.7,
+            dashArray: '4, 6'
+        }).addTo(this.map);
+
+        this.map.fitBounds(this.flightPathLine.getBounds().pad(0.1));
+    }
+
+    getMarkerColor(confidence) {
+        if (confidence >= 0.8) return '#22c55e'; // high confidence - green
+        if (confidence >= 0.6) return '#eab308'; // medium confidence - yellow
+        return '#f97316'; // low confidence - orange
+    }
+
     plotOnMap(minCount = 2) {
         // Clear existing markers
         this.markers.forEach(m => this.map.removeLayer(m));
         this.markers = [];
-        
+
         const filtered = this.detections.filter(det => det.count >= minCount);
-        
+
         filtered.forEach(det => {
-            const marker = L.marker([det.latitude, det.longitude]).addTo(this.map);
+            const color = this.getMarkerColor(det.confidence);
+            const marker = L.circleMarker([det.latitude, det.longitude], {
+                radius: 6 + Math.min(det.count, 8),
+                color,
+                fillColor: color,
+                fillOpacity: 0.7,
+                weight: 2
+            }).addTo(this.map);
             marker.bindPopup(
                 `<b>${det.class}</b><br>` +
                 `Confidence: ${det.confidence.toFixed(2)}<br>` +
@@ -168,7 +205,7 @@ class ProcessingPipeline {
             );
             this.markers.push(marker);
         });
-        
+
         if (this.markers.length > 0) {
             const group = L.featureGroup(this.markers);
             this.map.fitBounds(group.getBounds().pad(0.1));
