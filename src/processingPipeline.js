@@ -1,3 +1,4 @@
+import L from 'leaflet';
 import FlightLogParser from './flightLogParser.js';
 import VideoProcessor from './videoProcessor.js';
 import ModelInference from './modelInference.js';
