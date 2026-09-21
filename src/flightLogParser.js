@@ -1,5 +1,16 @@
 import Papa from 'papaparse';
 
+function lerp(a, b, t) {
+    return a + (b - a) * t;
+}
+
+// Interpolates heading across the shorter angular path (e.g. 350deg -> 10deg
+// should pass through 0deg, not wrap the long way around through 180deg).
+function lerpAngle(a, b, t) {
+    const diff = ((b - a + 540) % 360) - 180;
+    return (a + diff * t + 360) % 360;
+}
+
 class FlightLogParser {
     constructor() {
         this.telemetryData = [];
@@ -26,15 +37,23 @@ class FlightLogParser {
     }
     
     processData(rawData) {
-        // Filter and map to required format
+        // Filter and map to required format.
+        // Uses ?? / != null checks throughout (not || / truthiness) because
+        // 0 is a valid timestamp, latitude, longitude, and altitude value
+        // (e.g. the first sample of a log, or a location on the equator) and
+        // must not be treated as "missing".
         return rawData
-            .filter(row => row.latitude && row.longitude && row.altitude)
+            .filter(row =>
+                (row.latitude ?? row.lat ?? row['OSD.latitude']) != null &&
+                (row.longitude ?? row.lon ?? row['OSD.longitude']) != null &&
+                (row.altitude ?? row.alt ?? row['OSD.altitude']) != null
+            )
             .map(row => ({
-                timestamp: row.time || row.timestamp || Date.now(),
-                lat: parseFloat(row.latitude || row.lat || row['OSD.latitude']),
-                lon: parseFloat(row.longitude || row.lon || row['OSD.longitude']),
-                altitude: parseFloat(row.altitude || row.alt || row['OSD.altitude']),
-                heading: parseFloat(row.heading || row.yaw || row['OSD.yaw'] || 0),
+                timestamp: row.time ?? row.timestamp ?? Date.now(),
+                lat: parseFloat(row.latitude ?? row.lat ?? row['OSD.latitude']),
+                lon: parseFloat(row.longitude ?? row.lon ?? row['OSD.longitude']),
+                altitude: parseFloat(row.altitude ?? row.alt ?? row['OSD.altitude']),
+                heading: parseFloat(row.heading ?? row.yaw ?? row['OSD.yaw'] ?? 0),
                 isVideo: row.isVideo !== undefined ? row.isVideo : 1
             }))
             .filter(entry => !isNaN(entry.lat) && !isNaN(entry.lon));
@@ -42,20 +61,39 @@ class FlightLogParser {
     
     getTelemetryAtTime(timestamp) {
         if (this.telemetryData.length === 0) return null;
-        
-        // Find closest telemetry entry
-        let closest = this.telemetryData[0];
-        let minDiff = Math.abs(closest.timestamp - timestamp);
-        
-        for (let entry of this.telemetryData) {
-            const diff = Math.abs(entry.timestamp - timestamp);
-            if (diff < minDiff) {
-                minDiff = diff;
-                closest = entry;
+        if (this.telemetryData.length === 1) return this.telemetryData[0];
+
+        // Find the two samples bracketing this timestamp and interpolate,
+        // instead of snapping to the nearest one (logs are often sparse,
+        // e.g. 0.5s intervals, so nearest-sample lookup causes position/
+        // heading jitter between samples).
+        let before = null;
+        let after = null;
+
+        for (const entry of this.telemetryData) {
+            if (entry.timestamp <= timestamp) {
+                before = entry;
+            }
+            if (entry.timestamp >= timestamp) {
+                after = entry;
+                break;
             }
         }
-        
-        return closest;
+
+        if (!before) return after;
+        if (!after || before === after) return before;
+
+        const span = after.timestamp - before.timestamp;
+        const t = span === 0 ? 0 : (timestamp - before.timestamp) / span;
+
+        return {
+            timestamp,
+            lat: lerp(before.lat, after.lat, t),
+            lon: lerp(before.lon, after.lon, t),
+            altitude: lerp(before.altitude, after.altitude, t),
+            heading: lerpAngle(before.heading, after.heading, t),
+            isVideo: before.isVideo
+        };
     }
     
     getTelemetryAtFrame(frameNumber, fps = 30) {
