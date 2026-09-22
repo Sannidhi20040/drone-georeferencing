@@ -56,7 +56,17 @@ class FlightLogParser {
                 heading: parseFloat(row.heading ?? row.yaw ?? row['OSD.yaw'] ?? 0),
                 isVideo: row.isVideo !== undefined ? row.isVideo : 1
             }))
-            .filter(entry => !isNaN(entry.lat) && !isNaN(entry.lon));
+            // Drop rows with non-numeric values (e.g. a blank CSV cell passes
+            // the presence check above but parses to NaN, which would
+            // otherwise poison every downstream pixel-to-GPS calculation),
+            // then sort by timestamp since getTelemetryAtTime()'s bracketing
+            // interpolation assumes ascending order, which CSV row order
+            // does not guarantee.
+            .filter(entry =>
+                !isNaN(entry.lat) && !isNaN(entry.lon) &&
+                !isNaN(entry.altitude) && !isNaN(entry.heading)
+            )
+            .sort((a, b) => a.timestamp - b.timestamp);
     }
     
     getTelemetryAtTime(timestamp) {
