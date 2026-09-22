@@ -41,6 +41,31 @@ describe('FlightLogParser', () => {
 
             expect(result[0].heading).toBe(0);
         });
+
+        it('drops rows with a blank altitude/heading cell instead of admitting NaN', () => {
+            const rows = [
+                { time: 0, latitude: 12.9716, longitude: 77.5946, altitude: 100, heading: 45 },
+                { time: 1, latitude: 12.98, longitude: 77.59, altitude: '', heading: 50 }, // blank altitude
+                { time: 2, latitude: 12.99, longitude: 77.6, altitude: 110, heading: '' }  // blank heading
+            ];
+
+            const result = parser.processData(rows);
+
+            expect(result).toHaveLength(1);
+            expect(result.some(e => isNaN(e.altitude) || isNaN(e.heading))).toBe(false);
+        });
+
+        it('sorts entries by timestamp regardless of CSV row order', () => {
+            const rows = [
+                { time: 2, latitude: 12.99, longitude: 77.6, altitude: 110, heading: 0 },
+                { time: 0, latitude: 12.9716, longitude: 77.5946, altitude: 100, heading: 0 },
+                { time: 1, latitude: 12.98, longitude: 77.59, altitude: 105, heading: 0 }
+            ];
+
+            const result = parser.processData(rows);
+
+            expect(result.map(e => e.timestamp)).toEqual([0, 1, 2]);
+        });
     });
 
     describe('getTelemetryAtTime', () => {
