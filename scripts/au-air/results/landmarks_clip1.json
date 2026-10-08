@@ -1,0 +1,166 @@
+{
+  "clip": "20190829091111",
+  "landmarks": [
+    {
+      "id": "L1",
+      "name": "tip of the upper grass island (rounded end)",
+      "observations": [
+        {
+          "image": "frame_20190829091111_x_0000172.jpg",
+          "x": 938,
+          "y": 413
+        },
+        {
+          "image": "frame_20190829091111_x_0000391.jpg",
+          "x": 910,
+          "y": 405
+        },
+        {
+          "image": "frame_20190829091111_x_0002130.jpg",
+          "x": 1002,
+          "y": 585
+        },
+        {
+          "image": "frame_20190829091111_x_0002300.jpg",
+          "x": 1162,
+          "y": 507
+        }
+      ],
+      "lat": 56.206256,
+      "lon": 10.187972
+    },
+    {
+      "id": "L2",
+      "name": "round manhole cover",
+      "observations": [
+        {
+          "image": "frame_20190829091111_x_0000172.jpg",
+          "x": 1308,
+          "y": 396
+        },
+        {
+          "image": "frame_20190829091111_x_0000391.jpg",
+          "x": 1137,
+          "y": 399
+        },
+        {
+          "image": "frame_20190829091111_x_0002130.jpg",
+          "x": 1377,
+          "y": 588
+        },
+        {
+          "image": "frame_20190829091111_x_0002300.jpg",
+          "x": 1492,
+          "y": 495
+        }
+      ],
+      "lat": 56.206214,
+      "lon": 10.187992
+    },
+    {
+      "id": "L3",
+      "name": "square drain grate",
+      "observations": [
+        {
+          "image": "frame_20190829091111_x_0000172.jpg",
+          "x": 1007,
+          "y": 603
+        },
+        {
+          "image": "frame_20190829091111_x_0000391.jpg",
+          "x": 948,
+          "y": 519
+        },
+        {
+          "image": "frame_20190829091111_x_0002130.jpg",
+          "x": 1064,
+          "y": 786
+        },
+        {
+          "image": "frame_20190829091111_x_0002300.jpg",
+          "x": 1227,
+          "y": 670
+        }
+      ],
+      "lat": 56.206237,
+      "lon": 10.18794
+    },
+    {
+      "id": "L4",
+      "name": "inner kerb corner where the island tongue meets the island",
+      "observations": [
+        {
+          "image": "frame_20190829091111_x_0000172.jpg",
+          "x": 615,
+          "y": 375
+        },
+        {
+          "image": "frame_20190829091111_x_0000391.jpg",
+          "x": 717,
+          "y": 378
+        },
+        {
+          "image": "frame_20190829091111_x_0002130.jpg",
+          "x": 693,
+          "y": 540
+        },
+        {
+          "image": "frame_20190829091111_x_0002300.jpg",
+          "x": 885,
+          "y": 462
+        }
+      ],
+      "lat": 56.206289,
+      "lon": 10.187963
+    },
+    {
+      "id": "L5",
+      "name": "bottom end of the white curved kerb line (where the curve meets the straight edge)",
+      "observations": [
+        {
+          "image": "frame_20190829091111_x_0000391.jpg",
+          "x": 362,
+          "y": 421
+        },
+        {
+          "image": "frame_20190829091111_x_0002130.jpg",
+          "x": 108,
+          "y": 605
+        },
+        {
+          "image": "frame_20190829091111_x_0002300.jpg",
+          "x": 387,
+          "y": 534
+        }
+      ],
+      "lat": 56.206348,
+      "lon": 10.18792
+    },
+    {
+      "id": "L6",
+      "name": "bottom end of the LOWEST white lane dash in frame 235 (6th dash counting down from the curved kerb)",
+      "observations": [
+        {
+          "image": "frame_20190829091111_x_0000391.jpg",
+          "x": 213,
+          "y": 928
+        }
+      ],
+      "lat": 56.206345,
+      "lon": 10.187729
+    },
+    {
+      "id": "L7",
+      "name": "top-left corner of the lower grass island, where grass meets the dark vertical strip",
+      "observations": [
+        {
+          "image": "frame_20190829091111_x_0000391.jpg",
+          "x": 330,
+          "y": 782
+        }
+      ],
+      "lat": 56.206332,
+      "lon": 10.1878
+    }
+  ]
+}

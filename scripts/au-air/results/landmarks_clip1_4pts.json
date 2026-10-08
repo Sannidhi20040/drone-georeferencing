@@ -1,0 +1,77 @@
+{
+  "clip": "20190829091111",
+  "landmarks": [
+    {
+      "id": "L1",
+      "name": "tip of the upper grass island (rounded end)",
+      "observations": [
+        {
+          "image": "frame_20190829091111_x_0000172.jpg",
+          "x": 938,
+          "y": 413
+        },
+        {
+          "image": "frame_20190829091111_x_0000391.jpg",
+          "x": 910,
+          "y": 405
+        }
+      ],
+      "lat": 56.206256,
+      "lon": 10.187972
+    },
+    {
+      "id": "L2",
+      "name": "round manhole cover",
+      "observations": [
+        {
+          "image": "frame_20190829091111_x_0000172.jpg",
+          "x": 1308,
+          "y": 396
+        },
+        {
+          "image": "frame_20190829091111_x_0000391.jpg",
+          "x": 1137,
+          "y": 399
+        }
+      ],
+      "lat": 56.206214,
+      "lon": 10.187992
+    },
+    {
+      "id": "L3",
+      "name": "square drain grate",
+      "observations": [
+        {
+          "image": "frame_20190829091111_x_0000172.jpg",
+          "x": 1007,
+          "y": 603
+        },
+        {
+          "image": "frame_20190829091111_x_0000391.jpg",
+          "x": 948,
+          "y": 519
+        }
+      ],
+      "lat": 56.206237,
+      "lon": 10.18794
+    },
+    {
+      "id": "L4",
+      "name": "inner kerb corner where the island tongue meets the island",
+      "observations": [
+        {
+          "image": "frame_20190829091111_x_0000172.jpg",
+          "x": 615,
+          "y": 375
+        },
+        {
+          "image": "frame_20190829091111_x_0000391.jpg",
+          "x": 717,
+          "y": 378
+        }
+      ],
+      "lat": 56.206289,
+      "lon": 10.187963
+    }
+  ]
+}
