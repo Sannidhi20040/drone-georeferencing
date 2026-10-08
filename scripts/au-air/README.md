@@ -34,6 +34,9 @@ npm run dev
 #    "lat, lon" (Google Maps: right-click the point). Export, then move the file to
 #    data_check/derived/landmarks.json
 
+# 4. does error grow with drone tilt? (needs landmarks picked in frames with different roll/pitch)
+node scripts/au-air/per_frame.mjs --heading-fit
+
 # 3. score
 node scripts/au-air/evaluate.mjs --calibrate L1,L2 --heading-fit   # calibrate on a pair, test on the rest
 node scripts/au-air/evaluate.mjs --cv --heading-fit                # leave-pair-out cross-validation
@@ -84,6 +87,7 @@ same logic).
 | `prepare.mjs` | Annotations -> `data_check/derived/<clip>.json` and a flight-log CSV in this app's format |
 | `picker.html` | Click landmarks, enter satellite coordinates, export `landmarks.json` |
 | `evaluate.mjs` | Calibrate FOV/heading and report held-out absolute and pair-distance error |
+| `per_frame.mjs` | Per-frame offset and scatter next to the drone's tilt, to test whether error grows with tilt |
 | `self_consistency.mjs` | Repeatability of georeferenced boxes across frames (no satellite needed) |
 | `detector_eval.py` | Detector precision/recall against the dataset's boxes (needs `numpy pillow onnxruntime`) |
 | `lib.mjs`, `lib.test.js` | Shared logic and its tests (run with `npm test`) |
