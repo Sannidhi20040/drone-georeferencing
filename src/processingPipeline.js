@@ -45,8 +45,10 @@ class ProcessingPipeline {
         const timeSeconds = frameNumber / fps;
         const imageData = await this.videoProcessor.extractFrame(timeSeconds);
         
-        // Get telemetry
-        const telemetry = this.flightLogParser.getTelemetryAtFrame(frameNumber, fps);
+        // Get telemetry. syncOffset aligns the two clocks: log time = video time + offset.
+        const telemetry = this.flightLogParser.getTelemetryAtTime(
+            timeSeconds + (this.config.syncOffset || 0)
+        );
         if (!telemetry) {
             console.warn(`⚠️  No telemetry for frame ${frameNumber}`);
             return [];
@@ -74,9 +76,9 @@ class ProcessingPipeline {
     
     async processVideo(progressCallback, config = {}) {
         this.config = config;
-        const fps = 30;
+        const fps = config.fps || 30;
         const totalFrames = Math.floor(this.videoProcessor.video.duration * fps);
-        const framesToProcess = config.sampleRate || 30; // Process every Nth frame
+        const framesToProcess = Math.max(1, config.sampleRate || 30); // Process every Nth frame
         
         console.log(`🎬 Processing ${totalFrames} frames (sampling every ${framesToProcess} frames)...`);
         
@@ -125,6 +127,7 @@ class ProcessingPipeline {
                     cluster.longitude = (cluster.longitude * cluster.count + det.longitude) / newCount;
                     cluster.confidence = (cluster.confidence * cluster.count + det.confidence) / newCount;
                     cluster.count = newCount;
+                    cluster.simulated = Boolean(cluster.simulated || det.simulated);
                     merged = true;
                     break;
                 }

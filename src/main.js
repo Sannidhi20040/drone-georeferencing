@@ -114,6 +114,17 @@ function setupEventListeners() {
     });
 }
 
+function readNumber(id, fallback, min, max) {
+    const value = parseFloat(document.getElementById(id).value);
+    if (!Number.isFinite(value)) return fallback;
+    return Math.min(max, Math.max(min, value));
+}
+
+function setSimulationBanner(active, reason = '') {
+    document.getElementById('simulationBanner').classList.toggle('hidden', !active);
+    document.getElementById('simulationReason').textContent = reason;
+}
+
 function showProgressBar(show) {
     const container = document.getElementById('progressContainer');
     if (show) {
@@ -132,17 +143,27 @@ function updateProgress(percent, text) {
 async function processRealVideo(videoFile, flightLogFile) {
     console.log('🎬 Starting video processing...');
     
+    const fps = readNumber('fpsInput', 30, 1, 240);
+    const sampleSeconds = readNumber('sampleSeconds', 2, 0.1, 60);
+    
     const config = {
-        fov: 84,
+        fov: readNumber('fovInput', 84, 10, 180),
+        fps,
+        syncOffset: readNumber('syncOffset', 0, -3600, 3600),
         confidenceThreshold: parseFloat(document.getElementById('confThreshold').value),
         clusterDistance: parseFloat(document.getElementById('clusterDistance').value),
         minDetections: parseInt(document.getElementById('minDetections').value),
-        sampleRate: 60
+        sampleRate: Math.max(1, Math.round(sampleSeconds * fps))
     };
     
     console.log('⚙️  Config:', config);
     
+    setSimulationBanner(false);
     await pipeline.initialize(videoFile, flightLogFile, config);
+    
+    if (!pipeline.modelInference.modelLoaded) {
+        setSimulationBanner(true, pipeline.modelInference.simulationReason);
+    }
     
     const detections = await pipeline.processVideo((progress) => {
         const percent = progress.progress.toFixed(1);
@@ -150,6 +171,10 @@ async function processRealVideo(videoFile, flightLogFile) {
         updateProgress(progress.progress, text);
         console.log(`📊 ${text}`);
     }, config);
+    
+    if (pipeline.modelInference.usedSimulation) {
+        setSimulationBanner(true, pipeline.modelInference.simulationReason);
+    }
     
     // Store detections for export
     currentDetections = detections;
