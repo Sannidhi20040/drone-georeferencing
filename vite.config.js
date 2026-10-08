@@ -5,6 +5,9 @@ export default defineConfig({
   optimizeDeps: {
     exclude: ['onnxruntime-web'],
   },
+  test: {
+    include: ['src/**/*.test.js', 'scripts/**/*.test.js'],
+  },
   build: {
     outDir: 'dist',
     assetsDir: 'assets',
