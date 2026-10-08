@@ -11,7 +11,7 @@ Browser-based vehicle and pedestrian detection from drone footage, with GPS geor
 ## 🎯 Features
 
 - **YOLOv8 Object Detection**: Aerial-trained model (VisDrone-style classes: small vehicle, large vehicle, pedestrian) running in the browser via ONNX Runtime Web. Frames are letterboxed (aspect ratio preserved, gray padding) to match how YOLOv8 is trained.
-- **Pixel-to-GPS Transformation**: Casts each pixel's viewing ray onto a flat ground plane using the camera FOV, height above ground, heading, GPS position and **gimbal pitch** (so tilted footage works, not just straight-down). This is a geometric estimate that has **not yet been measured against real ground truth** (see limitations).
+- **Pixel-to-GPS Transformation**: Casts each pixel's viewing ray onto a flat ground plane using the camera FOV, height above ground, heading, GPS position and **gimbal pitch** (so tilted footage works, not just straight-down). This is a geometric estimate. A small pilot against hand-picked satellite landmarks on one public clip found 2.6% (4 close landmarks) to 12% (7 landmarks up to 18 m apart) error in distances between landmarks, and 1.4-2.7 m absolute error; details and caveats are in [scripts/au-air/README.md](scripts/au-air/README.md). It is not a general accuracy claim.
 - **Flight Log Integration**: Parses CSV telemetry, sorts it, drops rows with missing/non-numeric values, and interpolates linearly between samples (heading along the shorter arc).
 - **Configurable Camera & Timing**: Diagonal FOV, video frame rate, sampling interval and a video-to-log time offset are all adjustable in the UI.
 - **Flight Path Visualization**: The drone's GPS track is drawn as soon as a flight log is loaded.
@@ -66,11 +66,11 @@ To measure real georeferencing error you need a flight whose **video and log are
 2. Upload it as **Ground Truth** and process the flight.
 3. The sidebar reports matched/missed/extra counts, precision/recall, and mean/median/RMSE/max error in meters, and the map draws the ground-truth points and the match lines. Detections within the **match radius** (default 10 m) of a ground-truth point are matched one-to-one, nearest first.
 
-The reported error combines detector localization error and georeferencing error. **No such measurement has been made yet**; this tool exists so one can be.
+The reported error combines detector localization error and georeferencing error. A small pilot measurement on one public clip is recorded in [scripts/au-air/README.md](scripts/au-air/README.md); nothing has been measured on other footage.
 
 ### Testing on public drone data
 
-`scripts/au-air/` contains tools for scoring the detector and the georeferencing on the public AU-AIR dataset: a landmark picker, a calibrate-then-test evaluator, and a detector evaluation. See [scripts/au-air/README.md](scripts/au-air/README.md). **No landmark-based accuracy has been measured yet**; that file records exactly which checks have been run and what they do and do not show.
+`scripts/au-air/` contains tools for scoring the detector and the georeferencing on the public AU-AIR dataset: a landmark picker, a calibrate-then-test evaluator, and a detector evaluation. See [scripts/au-air/README.md](scripts/au-air/README.md). A small landmark-based pilot (one car park) is recorded there, with its results, what they are made of, and their limits.
 
 ### Sample data
 
@@ -99,7 +99,7 @@ The model-loading and inference path was checked manually in a browser (dev serv
 
 ## ⚠️ Known Limitations
 
-- **Not validated on real data**: the pipeline has been built and tested on synthetic flight logs and synthetic frames. There is no measured georeferencing error against surveyed ground truth, and no accuracy claim is made for the GPS positions.
+- **Not validated on real data**: the pipeline has been tested on synthetic flight logs and frames and, in a small pilot, on one public clip (7 hand-picked landmarks, 4 frames; see [scripts/au-air/README.md](scripts/au-air/README.md)). Nothing has been measured on other scenes, other drones or oblique footage, and no general accuracy claim is made for the GPS positions.
 - **Flat ground, no roll**: positions assume a flat ground plane at the given height above ground. Terrain elevation, gimbal roll, drone body tilt and lens distortion are not modelled, and rays within 5° of the horizon are discarded as unreliable. Angled footage works only if the pitch is known.
 - **Heading source**: bearing is computed from the drone's flight-log heading, not gimbal yaw. If the camera can pan independently of the airframe, detections will be misplaced.
 - **Manual time synchronization**: the video and flight log are aligned only by the offset you enter; a wrong offset directly shifts every detection.

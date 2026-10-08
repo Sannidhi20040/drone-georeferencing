@@ -72,7 +72,48 @@ same logic).
 
 ## Results so far
 
-**No landmark-based accuracy has been measured yet.** What exists (reproducible, clip 1 unless noted):
+### Landmark-based pilot (one car park, 7 landmarks, 4 frames)
+
+Setup: clip `20190829091111`. Landmarks are permanent ground features (kerb corners, lane-dash ends, a
+drain grate, a manhole cover) whose coordinates were read by hand from Google Maps satellite imagery
+(newer than the 2019 footage, so any feature that changed adds error). They were observed in 4 frames
+with drone body tilt of 1.5, 3, 25 and 26 degrees. Landmark files are in `results/landmarks_clip1*.json`
+and every output below is regenerated in `results/pilot_outputs.txt`. Method: leave-pair-out
+cross-validation (calibrate FOV and a heading offset on one landmark pair, score the others).
+
+| | 4 landmarks, all within 9 m (2 frames) | all 7 landmarks, up to 18 m apart (4 frames) |
+|---|---|---|
+| Distance between landmark pairs in one frame (median of fold medians, range) | **2.6%** (2.1-17%) | **12%** (5.5-37%) |
+| Absolute position error | 1.4 m (1.2-1.8) | 2.7 m (2.1-9.0) |
+| Fitted FOV across folds | 84 deg (77.5-92) | 81 deg (71-94) |
+
+Both columns are reported because they measure different things. The 4-landmark figure is limited by
+landmark spacing: with landmarks 3-9 m apart, picking noise of only 0.1-0.2 m would already show 3-6%
+for a perfect pipeline (simulated), so 2.6% cannot be resolved from noise. The 7-landmark figure
+includes landmarks 11-18 m away, where small per-frame scale and rotation errors have a long lever arm.
+
+What the error is made of (`error_geometry.mjs`, `per_frame.mjs`; geometry fitted on the 4 near landmarks):
+
+- **Within a frame the layout is right to 0.2-0.4 m.** After a per-frame scale, rotation and shift, the
+  residual is 0.21-0.37 m in every frame, including points 600-850 px from the image centre. There is
+  no lens-distortion signature at that level.
+- **Per-frame scale and rotation vary.** Scale (predicted / satellite) was 0.88 and 0.89 at tilt 1.5 and 3
+  degrees but 1.10 and 1.09 at 26 and 25 degrees; rotation was +2.5, +4.6, -1.3 and -2.8 degrees. Errors of
+  +-10% in scale and +-3-5 degrees in rotation, multiplied by range, give the 1-3 m errors on the far
+  landmarks. Possible causes, not separated by this data: altitude error, an effective-FOV change under the
+  camera's digital stabilisation (scale tracks tilt in these four frames), and yaw (compass) error.
+- **Per-frame position offset is 0.6-3.9 m** (drone GPS and/or residual tilt).
+- **Tilt is mostly compensated.** At about 25 degrees of tilt, positions shifted 2.7-3.9 m, versus roughly
+  9-10 m (height x tan(tilt)) if the camera were rigidly fixed to the body.
+- **No sign of a mis-identified landmark.** With a per-frame fit on the other six landmarks, each held-out
+  landmark lands within 0.2-1.0 m of its satellite coordinate (largest: L6, 1.0 m).
+
+Limits: one car park, one flight, four frames and seven landmarks picked by one person; the satellite
+coordinates have their own error; per-frame fits use 4-14 points for 4 parameters, so every per-frame
+statement above is suggestive, not established. This says nothing about other scenes, other drones or
+oblique footage.
+
+### Other checks (reproducible, clip 1 unless noted)
 
 | Check | Result | Caveats |
 |---|---|---|
@@ -88,6 +129,8 @@ same logic).
 | `picker.html` | Click landmarks, enter satellite coordinates, export `landmarks.json` |
 | `evaluate.mjs` | Calibrate FOV/heading and report held-out absolute and pair-distance error |
 | `per_frame.mjs` | Per-frame offset and scatter next to the drone's tilt, to test whether error grows with tilt |
+| `error_geometry.mjs` | Radial vs tangential error, plus a per-frame scale + rotation fit, to separate scale/distortion from yaw error |
 | `self_consistency.mjs` | Repeatability of georeferenced boxes across frames (no satellite needed) |
 | `detector_eval.py` | Detector precision/recall against the dataset's boxes (needs `numpy pillow onnxruntime`) |
+| `results/` | The pilot's landmark files and every output, regenerated in `pilot_outputs.txt` |
 | `lib.mjs`, `lib.test.js` | Shared logic and its tests (run with `npm test`) |

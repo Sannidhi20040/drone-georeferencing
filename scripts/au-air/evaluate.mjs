@@ -135,6 +135,6 @@ if (args.cv) {
 
 console.log('\nReminder: absolute error includes the drone\'s own GPS error and the satellite image\'s offset;' +
     '\nthe pair-distance error (same frame) cancels both. Report both, and say it is one scene.');
-const resultsFile = path.join(path.dirname(landmarksFile), 'results.json');
+const resultsFile = args.out ?? path.join(path.dirname(landmarksFile), 'results.json');
 fs.writeFileSync(resultsFile, JSON.stringify(result, null, 2));
 console.log(`(saved ${resultsFile})`);
