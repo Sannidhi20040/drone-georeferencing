@@ -6,16 +6,13 @@ class ModelInference {
         this.session = null;
         this.inputShape = [1, 3, 640, 640];
         this.classNames = ['small-vehicle', 'large-vehicle', 'human'];
-        this.modelPath = '/models/aerial_yolov8.onnx';
+        this.modelPath = `${import.meta.env.BASE_URL}models/aerial_yolov8.onnx`;
     }
     
     async loadModel() {
         try {
             console.log('🤖 Loading YOLO model from:', this.modelPath);
-            
-            // Configure ONNX Runtime for WebAssembly
-            ort.env.wasm.wasmPaths = 'https://cdn.jsdelivr.net/npm/onnxruntime-web@1.17.0/dist/';
-            
+
             this.session = await ort.InferenceSession.create(this.modelPath, {
                 executionProviders: ['wasm'],
                 graphOptimizationLevel: 'all',
