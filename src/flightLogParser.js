@@ -4,6 +4,19 @@ function lerp(a, b, t) {
     return a + (b - a) * t;
 }
 
+function toNumberOrNull(value) {
+    if (value === null || value === undefined || value === '') return null;
+    const n = parseFloat(value);
+    return Number.isFinite(n) ? n : null;
+}
+
+// Interpolates an optional channel; if only one neighbour has a value, use it.
+function lerpOptional(a, b, t) {
+    if (a === null) return b;
+    if (b === null) return a;
+    return lerp(a, b, t);
+}
+
 // Interpolates heading across the shorter angular path (e.g. 350deg -> 10deg
 // should pass through 0deg, not wrap the long way around through 180deg).
 function lerpAngle(a, b, t) {
@@ -54,6 +67,10 @@ class FlightLogParser {
                 lon: parseFloat(row.longitude ?? row.lon ?? row['OSD.longitude']),
                 altitude: parseFloat(row.altitude ?? row.alt ?? row['OSD.altitude']),
                 heading: parseFloat(row.heading ?? row.yaw ?? row['OSD.yaw'] ?? 0),
+                // Degrees from the horizon (0 = level, -90 = straight down); null if the log has none.
+                gimbalPitch: toNumberOrNull(
+                    row.gimbalPitch ?? row.gimbal_pitch ?? row['gimbal.pitch'] ?? row['OSD.gimbalPitch']
+                ),
                 isVideo: row.isVideo !== undefined ? row.isVideo : 1
             }))
             // Drop rows with non-numeric values (e.g. a blank CSV cell passes
@@ -102,13 +119,9 @@ class FlightLogParser {
             lon: lerp(before.lon, after.lon, t),
             altitude: lerp(before.altitude, after.altitude, t),
             heading: lerpAngle(before.heading, after.heading, t),
+            gimbalPitch: lerpOptional(before.gimbalPitch, after.gimbalPitch, t),
             isVideo: before.isVideo
         };
-    }
-    
-    getTelemetryAtFrame(frameNumber, fps = 30) {
-        const timestamp = frameNumber / fps;
-        return this.getTelemetryAtTime(timestamp);
     }
 }
 
