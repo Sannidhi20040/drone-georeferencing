@@ -1,8 +1,11 @@
 import * as ort from 'onnxruntime-web';
+import { computeLetterbox, boxToOriginal } from './letterbox.js';
 
 class ModelInference {
     constructor() {
         this.modelLoaded = false;
+        this.usedSimulation = false;
+        this.simulationReason = null;
         this.session = null;
         this.inputShape = [1, 3, 640, 640];
         this.classNames = ['small-vehicle', 'large-vehicle', 'human'];
@@ -19,6 +22,8 @@ class ModelInference {
             });
             
             this.modelLoaded = true;
+            this.usedSimulation = false;
+            this.simulationReason = null;
             console.log('✅ YOLO model loaded successfully!');
             console.log('📊 Input name:', this.session.inputNames[0]);
             console.log('📊 Output name:', this.session.outputNames[0]);
@@ -28,6 +33,7 @@ class ModelInference {
             console.error('❌ Model loading failed:', error);
             console.warn('⚠️  Using simulation mode instead');
             this.modelLoaded = false;
+            this.simulationReason = `Model failed to load: ${error.message}`;
             return false;
         }
     }
@@ -42,7 +48,7 @@ class ModelInference {
             const startTime = performance.now();
             
             // Preprocess
-            const inputTensor = this.preprocessImage(imageData);
+            const { tensor: inputTensor, letterbox } = this.preprocessImage(imageData);
             
             // Run inference
             const feeds = { [this.session.inputNames[0]]: inputTensor };
@@ -54,6 +60,7 @@ class ModelInference {
                 output.data, 
                 output.dims,
                 confidenceThreshold, 
+                letterbox,
                 imageData.width, 
                 imageData.height
             );
@@ -65,25 +72,33 @@ class ModelInference {
             
         } catch (error) {
             console.error('❌ Inference error:', error);
+            this.simulationReason = `Inference error: ${error.message}`;
             return this.simulateDetections(imageData.width, imageData.height);
         }
     }
     
     preprocessImage(imageData) {
         const targetSize = 640;
+        const letterbox = computeLetterbox(imageData.width, imageData.height, targetSize);
 
-        // Resize via canvas (hardware-accelerated, antialiased) instead of a
-        // manual nearest-neighbor sampling loop over every output pixel.
         const srcCanvas = document.createElement('canvas');
         srcCanvas.width = imageData.width;
         srcCanvas.height = imageData.height;
         srcCanvas.getContext('2d').putImageData(imageData, 0, 0);
 
+        // Letterbox: scale to fit while preserving aspect ratio and pad with the
+        // neutral gray (114) Ultralytics uses in training, rather than stretching.
         const dstCanvas = document.createElement('canvas');
         dstCanvas.width = targetSize;
         dstCanvas.height = targetSize;
         const dstCtx = dstCanvas.getContext('2d');
-        dstCtx.drawImage(srcCanvas, 0, 0, targetSize, targetSize);
+        dstCtx.fillStyle = 'rgb(114, 114, 114)';
+        dstCtx.fillRect(0, 0, targetSize, targetSize);
+        dstCtx.drawImage(
+            srcCanvas,
+            0, 0, imageData.width, imageData.height,
+            letterbox.padX, letterbox.padY, letterbox.newWidth, letterbox.newHeight
+        );
         const resized = dstCtx.getImageData(0, 0, targetSize, targetSize).data;
 
         // CHW float32, normalized to [0, 1]
@@ -97,27 +112,21 @@ class ModelInference {
             input[2 * pixelCount + i] = resized[srcIdx + 2] / 255.0;   // B
         }
 
-        return new ort.Tensor('float32', input, [1, 3, targetSize, targetSize]);
+        return {
+            tensor: new ort.Tensor('float32', input, [1, 3, targetSize, targetSize]),
+            letterbox
+        };
     }
     
-    postProcessYOLOv8(output, dims, threshold, imgWidth, imgHeight) {
-        // YOLOv8 output format: [1, 8, 8400]
-        // 8 = 4 bbox coords + 1 objectness + 3 class scores
-        const [batch, channels, numBoxes] = dims;
+    postProcessYOLOv8(output, dims, threshold, letterbox, imgWidth, imgHeight) {
+        // Raw YOLOv8 detect output, channel-major: [1, 4 + numClasses, 8400]
+        // (here [1, 7, 8400]): cx, cy, w, h in letterboxed 640x640 pixels, then
+        // one score per class. YOLOv8 has no separate objectness channel.
+        const [, , numBoxes] = dims;
         
         const detections = [];
-        const scaleX = imgWidth / 640;
-        const scaleY = imgHeight / 640;
         
-        // Transpose and parse boxes
         for (let i = 0; i < numBoxes; i++) {
-            // Get box data
-            const cx = output[i] * scaleX;
-            const cy = output[numBoxes + i] * scaleY;
-            const w = output[2 * numBoxes + i] * scaleX;
-            const h = output[3 * numBoxes + i] * scaleY;
-            
-            // Get class scores (last 3 channels)
             const scores = [
                 output[4 * numBoxes + i],     // small-vehicle
                 output[5 * numBoxes + i],     // large-vehicle
@@ -125,22 +134,29 @@ class ModelInference {
             ];
             
             const maxScore = Math.max(...scores);
+            if (maxScore < threshold) continue;
             
-            if (maxScore >= threshold) {
-                const classId = scores.indexOf(maxScore);
-                
-                detections.push({
-                    class: this.classNames[classId],
-                    confidence: maxScore,
-                    x: cx,
-                    y: cy,
-                    width: w,
-                    height: h
-                });
-            }
+            const box = boxToOriginal(
+                output[i],
+                output[numBoxes + i],
+                output[2 * numBoxes + i],
+                output[3 * numBoxes + i],
+                letterbox
+            );
+            
+            // A box centered in the gray padding is not on the actual frame.
+            if (box.x < 0 || box.x > imgWidth || box.y < 0 || box.y > imgHeight) continue;
+            
+            detections.push({
+                class: this.classNames[scores.indexOf(maxScore)],
+                confidence: maxScore,
+                x: box.x,
+                y: box.y,
+                width: box.width,
+                height: box.height
+            });
         }
         
-        // Apply Non-Maximum Suppression
         return this.applyNMS(detections, 0.45);
     }
     
@@ -198,11 +214,13 @@ class ModelInference {
     }
     
     simulateDetections(width, height) {
+        this.usedSimulation = true;
         const numDetections = Math.floor(Math.random() * 5) + 2;
         const detections = [];
         
         for (let i = 0; i < numDetections; i++) {
             detections.push({
+                simulated: true,
                 class: this.classNames[Math.floor(Math.random() * this.classNames.length)],
                 confidence: 0.5 + Math.random() * 0.4,
                 x: Math.random() * width,

@@ -18,6 +18,7 @@ describe('GeoConverter', () => {
         expect(result.latitude).toBeCloseTo(telemetry.lat, 6);
         expect(result.longitude).toBeCloseTo(telemetry.lon, 6);
         expect(result.distanceFromDrone).toBeCloseTo(0, 6);
+        expect(result.bearing).toBeCloseTo(telemetry.heading, 6);
     });
 
     it('places a pixel above image-center on the far side of the drone', () => {

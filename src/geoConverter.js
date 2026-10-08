@@ -41,7 +41,11 @@ class GeoConverter {
         const metersY = -offsetY * (groundHeight / 2);
         
         const distanceMeters = Math.sqrt(metersX ** 2 + metersY ** 2);
-        let angleFromNorth = Math.atan2(metersX, metersY) * (180 / Math.PI);
+        // atan2(0, -0) is 180deg, which would report a bogus bearing for a
+        // detection exactly under the drone; a zero offset has no direction.
+        let angleFromNorth = distanceMeters === 0
+            ? 0
+            : Math.atan2(metersX, metersY) * (180 / Math.PI);
         let absoluteBearing = (heading + angleFromNorth + 360) % 360;
         
         const dronePoint = point([lon, lat]);
