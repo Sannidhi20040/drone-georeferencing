@@ -19,3 +19,6 @@ public/models/*.pt
 
 # Environment
 .env
+
+# Local research datasets (large; licence restricts redistribution)
+data_check/

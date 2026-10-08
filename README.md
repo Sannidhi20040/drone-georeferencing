@@ -68,6 +68,10 @@ To measure real georeferencing error you need a flight whose **video and log are
 
 The reported error combines detector localization error and georeferencing error. **No such measurement has been made yet**; this tool exists so one can be.
 
+### Testing on public drone data
+
+`scripts/au-air/` contains tools for scoring the detector and the georeferencing on the public AU-AIR dataset: a landmark picker, a calibrate-then-test evaluator, and a detector evaluation. See [scripts/au-air/README.md](scripts/au-air/README.md). **No landmark-based accuracy has been measured yet**; that file records exactly which checks have been run and what they do and do not show.
+
 ### Sample data
 
 `test_data/` contains two flight logs, `sample_flight_log.csv` and `vidhana_soudha_flight_log.csv`. **Both are synthetic**: 10 hand-written rows with smoothly increasing values, with Bangalore-area coordinates as placeholders. They are not recordings of a real flight, and **no sample video is included** in the repository. They exist to exercise the pipeline, not to measure accuracy.
