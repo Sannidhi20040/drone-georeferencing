@@ -7,12 +7,21 @@ class ModelInference {
         this.usedSimulation = false;
         this.simulationReason = null;
         this.session = null;
+        this.loadedPath = null;
         this.inputShape = [1, 3, 640, 640];
         this.classNames = ['small-vehicle', 'large-vehicle', 'human'];
         this.modelPath = `${import.meta.env.BASE_URL}models/aerial_yolov8.onnx`;
     }
     
     async loadModel() {
+        // Re-creating the session on every run re-parses a 43 MB model.
+        if (this.session && this.loadedPath === this.modelPath) {
+            this.modelLoaded = true;
+            this.usedSimulation = false;
+            this.simulationReason = null;
+            return true;
+        }
+        
         try {
             console.log('🤖 Loading YOLO model from:', this.modelPath);
 
@@ -21,6 +30,7 @@ class ModelInference {
                 graphOptimizationLevel: 'all',
             });
             
+            this.loadedPath = this.modelPath;
             this.modelLoaded = true;
             this.usedSimulation = false;
             this.simulationReason = null;
@@ -33,6 +43,8 @@ class ModelInference {
             console.error('❌ Model loading failed:', error);
             console.warn('⚠️  Using simulation mode instead');
             this.modelLoaded = false;
+            this.session = null;
+            this.loadedPath = null;
             this.simulationReason = `Model failed to load: ${error.message}`;
             return false;
         }
@@ -84,14 +96,14 @@ class ModelInference {
         const srcCanvas = document.createElement('canvas');
         srcCanvas.width = imageData.width;
         srcCanvas.height = imageData.height;
-        srcCanvas.getContext('2d').putImageData(imageData, 0, 0);
+        srcCanvas.getContext('2d', { willReadFrequently: true }).putImageData(imageData, 0, 0);
 
         // Letterbox: scale to fit while preserving aspect ratio and pad with the
         // neutral gray (114) Ultralytics uses in training, rather than stretching.
         const dstCanvas = document.createElement('canvas');
         dstCanvas.width = targetSize;
         dstCanvas.height = targetSize;
-        const dstCtx = dstCanvas.getContext('2d');
+        const dstCtx = dstCanvas.getContext('2d', { willReadFrequently: true });
         dstCtx.fillStyle = 'rgb(114, 114, 114)';
         dstCtx.fillRect(0, 0, targetSize, targetSize);
         dstCtx.drawImage(
