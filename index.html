@@ -119,7 +119,7 @@
             margin-top: 15px;
         }
 
-        #statsSection.hidden {
+        #statsSection.hidden, #validationStats.hidden {
             display: none;
         }
 
@@ -260,6 +260,73 @@
             font-size: 13px;
         }
 
+        .settings-group select {
+            width: 100%;
+            padding: 8px;
+            background: #0f172a;
+            color: #e2e8f0;
+            border: 1px solid #334155;
+            border-radius: 6px;
+            font-size: 13px;
+        }
+
+        #cancelBtn {
+            width: 100%;
+            margin-top: 10px;
+            padding: 10px;
+            background: #7f1d1d;
+            color: #fee2e2;
+            border: 1px solid #f87171;
+            border-radius: 8px;
+            font-size: 13px;
+            cursor: pointer;
+        }
+
+        #cancelBtn[hidden] {
+            display: none;
+        }
+
+        .stats-note {
+            font-size: 11px;
+            color: #fbbf24;
+            margin-top: 8px;
+        }
+
+        .stats-note.hidden {
+            display: none;
+        }
+
+        .stat-subhead {
+            font-size: 13px;
+            color: #cbd5e1;
+            margin-top: 14px;
+        }
+
+        .map-legend {
+            background: rgba(15, 23, 42, 0.92);
+            color: #e2e8f0;
+            padding: 10px 12px;
+            border-radius: 8px;
+            font-size: 12px;
+            line-height: 1.7;
+        }
+
+        .map-legend i {
+            display: inline-block;
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            margin-right: 8px;
+            vertical-align: middle;
+        }
+
+        .map-legend .line {
+            display: inline-block;
+            width: 14px;
+            margin-right: 8px;
+            vertical-align: middle;
+        }
+
         .settings-hint {
             font-size: 11px;
             color: #94a3b8;
@@ -267,7 +334,7 @@
             line-height: 1.4;
         }
     </style>
-  <script type="module" crossorigin src="/drone-georeferencing/assets/index-vWh2pWW7.js"></script>
+  <script type="module" crossorigin src="/drone-georeferencing/assets/index-yNJ8TCMm.js"></script>
 </head>
 <body>
     <div class="sidebar">
@@ -298,7 +365,26 @@
             </label>
         </div>
 
+        <div class="section">
+            <h2>3. Ground Truth (optional)</h2>
+            <label for="groundTruthInput" class="upload-box">
+                <div>🎯 Click to select surveyed points (CSV)</div>
+                <input type="file" id="groundTruthInput" accept=".csv">
+                <div id="groundTruthFileName" class="file-name">No file selected</div>
+            </label>
+            <div class="settings-hint">
+                CSV with <code>latitude,longitude</code> (and optionally <code>class</code>)
+                for objects whose true positions you measured. Used to report
+                georeferencing error in meters after processing.
+            </div>
+            <div class="settings-group">
+                <label for="matchRadius"><span>Match radius (m)</span></label>
+                <input type="number" id="matchRadius" min="1" max="100" step="1" value="10">
+            </div>
+        </div>
+
         <button id="processBtn" disabled>🚀 Process Video</button>
+        <button id="cancelBtn" hidden>✖ Cancel</button>
 
         <div class="info-box">
             💡 Using OpenStreetMap (free alternative to Mapbox)
@@ -330,6 +416,17 @@
             <div class="stat-item">
                 <span>📍 Total Detections:</span>
                 <span class="stat-value" id="statTotal">0</span>
+            </div>
+            <div id="statsNote" class="stats-note hidden"></div>
+
+            <div id="validationStats" class="hidden">
+                <h2 class="stat-subhead">🎯 Validation vs. ground truth</h2>
+                <div class="stat-item"><span>Matched / missed / extra</span><span class="stat-value" id="valCounts">-</span></div>
+                <div class="stat-item"><span>Precision / recall</span><span class="stat-value" id="valPR">-</span></div>
+                <div class="stat-item"><span>Mean error</span><span class="stat-value" id="valMean">-</span></div>
+                <div class="stat-item"><span>Median error</span><span class="stat-value" id="valMedian">-</span></div>
+                <div class="stat-item"><span>RMSE</span><span class="stat-value" id="valRmse">-</span></div>
+                <div class="stat-item"><span>Max error</span><span class="stat-value" id="valMax">-</span></div>
             </div>
         </div>
 
@@ -397,6 +494,52 @@
                 <div class="settings-hint">
                     Telemetry time = video time + offset. Use a positive value if
                     the flight log started recording before the video did.
+                </div>
+            </div>
+
+            <div class="settings-group">
+                <label for="gimbalPitch"><span>Gimbal pitch (°)</span></label>
+                <input type="number" id="gimbalPitch" min="-90" max="0" step="1" value="-90">
+                <div class="settings-hint">
+                    Used when the flight log has no <code>gimbalPitch</code> column.
+                    0 = looking at the horizon, −90 = straight down. Rays closer than
+                    5° to the horizon are discarded.
+                </div>
+            </div>
+        </div>
+
+        <div class="section">
+            <h2>📏 Altitude &amp; Objects</h2>
+
+            <div class="settings-group">
+                <label for="altitudeMode"><span>Log altitude is…</span></label>
+                <select id="altitudeMode">
+                    <option value="agl">Height above ground (use as-is)</option>
+                    <option value="asl">Above sea level (subtract first sample)</option>
+                </select>
+                <div class="settings-hint">
+                    Positions need height above the ground. "Subtract first sample"
+                    assumes the drone took off from ground level.
+                </div>
+            </div>
+
+            <div class="settings-group">
+                <label for="altitudeOffset"><span>Extra altitude offset (m)</span></label>
+                <input type="number" id="altitudeOffset" min="-1000" max="1000" step="0.5" value="0">
+                <div class="settings-hint">
+                    Subtracted from the altitude, e.g. for a rooftop takeoff or raised terrain.
+                </div>
+            </div>
+
+            <div class="settings-group">
+                <label for="objectMode"><span>Objects are…</span></label>
+                <select id="objectMode">
+                    <option value="static">Stationary (merge nearby sightings)</option>
+                    <option value="moving">Moving (track between frames)</option>
+                </select>
+                <div class="settings-hint">
+                    Tracking needs dense sampling (try one frame every 0.5 s or less).
+                    With sparse sampling, nearby vehicles can swap identities.
                 </div>
             </div>
         </div>
