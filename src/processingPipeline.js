@@ -186,7 +186,14 @@ class ProcessingPipeline {
             dashArray: '4, 6'
         }).addTo(this.map);
 
-        this.map.fitBounds(this.flightPathLine.getBounds().pad(0.1));
+        this.fitMapTo(this.flightPathLine.getBounds());
+    }
+
+    // Refresh the map size and jump without animation: on a hidden or just-resized page
+    // Leaflet's animated zoom can leave the view zoomed all the way out.
+    fitMapTo(bounds) {
+        this.map.invalidateSize({ animate: false });
+        this.map.fitBounds(bounds.pad(0.1), { animate: false });
     }
 
     getMarkerColor(confidence) {
@@ -230,8 +237,7 @@ class ProcessingPipeline {
         }
 
         if (this.markers.length > 0) {
-            const group = L.featureGroup(this.markers);
-            this.map.fitBounds(group.getBounds().pad(0.1));
+            this.fitMapTo(L.featureGroup(this.markers).getBounds());
         }
     }
 }

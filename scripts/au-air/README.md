@@ -121,6 +121,13 @@ oblique footage.
 | Detector, all 8 clips, 25 frames each, conf 0.5 | cars: precision 0.26, recall 0.43 (IoU), 0.47 / 0.77 (centre-in-box) | Mostly oblique views, which the model was not trained for. Varies with the random sample. |
 | Self-consistency of georeferenced ground-truth boxes (`self_consistency.mjs`) | same parked car seen 10 s apart lands a median 0.7 m apart at FOV 55-65, about 73% of cars matched within 4 m | Relative repeatability only. FOV and yaw convention were chosen on this same data, the 4 m radius biases toward small numbers, and it hardly constrains FOV. `heading = +yaw` was the most consistent convention. |
 
+## Building a demo video
+
+`node scripts/au-air/make_demo.mjs` (needs `ffmpeg`) turns a continuous stretch of frames into an MP4 plus a flight log
+rebased to t = 0, in `data_check/derived/demo/`. The default stretch (clip 1, 30 s) has the drone sweeping along a row of
+parked cars. Checked in the app: the real model finds 3 cars and 2 people, the same counts the dataset's own labels give
+through the same pipeline. Use it for demos and research only (AU-AIR is non-commercial).
+
 ## Files
 
 | File | Purpose |
@@ -133,4 +140,5 @@ oblique footage.
 | `self_consistency.mjs` | Repeatability of georeferenced boxes across frames (no satellite needed) |
 | `detector_eval.py` | Detector precision/recall against the dataset's boxes (needs `numpy pillow onnxruntime`) |
 | `results/` | The pilot's landmark files and every output, regenerated in `pilot_outputs.txt` |
+| `make_demo.mjs` | Build a demo video + matching flight log from a continuous stretch of frames |
 | `lib.mjs`, `lib.test.js` | Shared logic and its tests (run with `npm test`) |
