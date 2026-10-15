@@ -153,6 +153,17 @@ def test_prompt_is_identical_for_every_rotation_and_names_only_the_options():
     assert "number of metres" in vlm.build_prompt(m)
 
 
+def test_scale_cue_is_added_only_on_request_and_is_the_same_for_every_rotation():
+    q = {"type": "metric", "pair": ["A", "B"], "markers": ["A", "B"],
+         "prompt_body": "Approximately how many metres apart are A and B?"}
+    plain = vlm.build_prompt(q)
+    cued = vlm.build_prompt(q, vlm.scale_cue(21.6, 80))
+    assert "altitude" not in plain and "field of view" not in plain
+    assert "about 22 m above the ground" in cued and "about 80 degrees" in cued
+    assert cued.replace(" " + vlm.scale_cue(21.6, 80), "") == plain          # nothing else changes
+    assert vlm.build_prompt(dict(q, rotation=90), vlm.scale_cue(21.6, 80)) == cued
+
+
 # --- rotation: markers must land on the same scene content, labels upright --------------------------
 
 @pytest.mark.parametrize("degrees", [0, 90, 180, 270])

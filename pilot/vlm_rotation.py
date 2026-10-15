@@ -315,8 +315,14 @@ def build_questions(frame_id, objects, rng, max_comparisons=3, max_metric=2,
     return sorted(picked, key=lambda q: q["id"]) + sorted(metrics, key=lambda q: q["id"])
 
 
-def build_prompt(question):
-    """Identical for every rotation of the same question."""
+def scale_cue(altitude_m, diag_fov_deg):
+    """The optional sentence for the scale-cue ablation: the geometry the model otherwise has to guess."""
+    return (f"The photo was taken from a drone about {altitude_m:.0f} m above the ground, with a camera "
+            f"whose diagonal field of view is about {diag_fov_deg:.0f} degrees.")
+
+
+def build_prompt(question, cue=None):
+    """Identical for every rotation of the same question. `cue` adds a scale sentence after the introduction."""
     markers = ", ".join(question["markers"])
     if question["type"] == "comparison":
         fmt = (f'Respond with only a JSON object: {{"answer": "<{question["options"][0]} or '
@@ -324,7 +330,8 @@ def build_prompt(question):
     else:
         fmt = ('Respond with only a JSON object: {"answer": <number of metres>, '
                '"confidence": <integer 0-100>}')
-    return (f"This is an aerial photograph taken by a drone. Some ground objects are marked "
+    intro = "This is an aerial photograph taken by a drone." + (f" {cue}" if cue else "")
+    return (f"{intro} Some ground objects are marked "
             f"with labelled circles ({markers}).\n\n{question['prompt_body']}\n\n"
             f"{fmt}\nThe confidence is how sure you are, from 0 (guess) to 100 (certain).")
 
@@ -807,8 +814,10 @@ def run(args):
 
     jobs = []
     for scene in scenes:
+        scene["questions"] = [q for q in scene["questions"] if q["type"] in args.types]
+        cue = scale_cue(scene["altitude_m"], args.diag_fov) if args.scale_cue else None
         for q in scene["questions"]:
-            q["prompt"] = build_prompt(q)
+            q["prompt"] = build_prompt(q, cue)
         for q in scene["questions"]:
             # only the markers the question names are drawn, so the image never shows an unexplained label
             points = {label: scene["_points"][label] for label in q["markers"]}
@@ -821,7 +830,7 @@ def run(args):
     public_scenes = [{k: v for k, v in s.items() if not k.startswith("_")} for s in scenes]
     manifest = {"clip": args.clip, "diag_fov_deg": args.diag_fov, "conf": args.conf, "seed": args.seed,
                 "rotations": list(args.rotations), "min_rel_diff": args.min_rel_diff,
-                "min_abs_diff_m": args.min_abs_diff_m, "scenes": public_scenes}
+                "min_abs_diff_m": args.min_abs_diff_m, "scale_cue": args.scale_cue, "scenes": public_scenes}
     (out / "questions.json").write_text(json.dumps(manifest, indent=2))
     n_cmp = sum(q["type"] == "comparison" for s in scenes for q in s["questions"])
     n_met = sum(q["type"] == "metric" for s in scenes for q in s["questions"])
@@ -832,7 +841,7 @@ def run(args):
         gaps = [q["relative_gap"] for q in s["questions"] if q["type"] == "comparison"]
         print(f"  frame {s['frame']:>4}  alt {s['altitude_m']:>5.1f} m  tilt {s['tilt_deg']:.1f}  "
               f"{len(s['objects'])} objects  {sum(q['type'] == 'comparison' for q in s['questions'])} cmp "
-              f"(gap {min(gaps):.0%}-{max(gaps):.0%})  {sum(q['type'] == 'metric' for q in s['questions'])} metric")
+              f"({f'gap {min(gaps):.0%}-{max(gaps):.0%}' if gaps else 'no cmp'})  {sum(q['type'] == 'metric' for q in s['questions'])} metric")
     if args.select_only:
         return 0
 
@@ -970,6 +979,10 @@ def main(argv=None):
     ap.add_argument("--min-sep-m", type=float, default=MIN_SEP_M)
     ap.add_argument("--max-comparisons", type=int, default=3, help="comparison questions per frame")
     ap.add_argument("--max-metric", type=int, default=2, help="metric questions per frame")
+    ap.add_argument("--scale-cue", action="store_true",
+                    help="ablation: tell the model the drone altitude (from the flight log) and the assumed diagonal FOV")
+    ap.add_argument("--types", nargs="+", default=["comparison", "metric"], choices=("comparison", "metric"),
+                    help="question types to ask (e.g. --types metric)")
     ap.add_argument("--rotations", type=int, nargs="+", default=list(ROTATIONS), choices=ROTATIONS)
     ap.add_argument("--max-edge", type=int, default=DEFAULT_MAX_EDGE, help="long side of the images sent, pixels")
     ap.add_argument("--seed", type=int, default=7)
