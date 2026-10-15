@@ -26,6 +26,7 @@ Setup (the AU-AIR frames and `node scripts/au-air/prepare.mjs` output must exist
     python pilot/vlm_rotation.py --select-only                       # build + inspect, no API calls
     python pilot/vlm_rotation.py --provider mock                     # whole pipeline, fake model
     python pilot/vlm_rotation.py --model claude-haiku-4-5            # real run (costs money)
+    python pilot/vlm_rotation.py --provider ollama --model qwen2.5vl:3b   # free, local (needs `ollama serve`)
     python pilot/vlm_rotation.py --analyze-only --model claude-haiku-4-5
 
 A re-run skips every (question, rotation) already answered in raw_responses.jsonl, so an
@@ -33,8 +34,8 @@ interrupted run resumes without paying twice.
 
 Choosing the model:
   * --model is required for a live run; there is no default, so nothing is spent on a model you
-    did not pick. Only the Anthropic Messages API is implemented (class AnthropicProvider); another
-    API is one more class with the same `ask` method.
+    did not pick. Providers: anthropic (Messages API), ollama (local, free) and mock (no model).
+    Another API is one more class with the same `ask` method.
   * temperature 0 is sent as asked. Per the Claude API docs, Opus 4.7 and later reject any request that
     carries a temperature, and Sonnet 5 / 5.5 reject non-default values, so those models cannot be run at
     temperature 0; the 4.6 / 4.5 generation (Opus 4.6, Sonnet 4.6, Haiku 4.5, ...) accepts it. If the API
@@ -435,6 +436,57 @@ class AnthropicProvider:
                 "response": response.model_dump(mode="json")}
 
 
+class OllamaProvider:
+    """A local model served by Ollama (https://ollama.com): free, no key, nothing leaves the machine.
+
+    Uses Ollama's native /api/chat with `format: "json"`, which constrains the reply to valid JSON
+    (the Anthropic path relies on the prompt alone, so small local models get a little extra help).
+    The host comes from --ollama-host or the OLLAMA_HOST environment variable.
+    """
+
+    name = "ollama"
+
+    def __init__(self, model, host=None, temperature=0.0, max_tokens=1024, timeout=900):
+        self.model = model
+        self.host = (host or os.environ.get("OLLAMA_HOST") or "http://localhost:11434").rstrip("/")
+        if "://" not in self.host:
+            self.host = "http://" + self.host
+        self.temperature = temperature
+        self.max_tokens = max_tokens
+        self.timeout = timeout
+
+    def _post(self, path, payload=None, timeout=None):
+        import urllib.request
+        data = None if payload is None else json.dumps(payload).encode()
+        req = urllib.request.Request(self.host + path, data=data, headers={"Content-Type": "application/json"})
+        with urllib.request.urlopen(req, timeout=timeout or self.timeout) as resp:
+            return json.loads(resp.read())
+
+    def check(self):
+        """Fail fast, with the fix, if the server is down or the model is not pulled."""
+        import urllib.error
+        try:
+            tags = self._post("/api/tags", timeout=10)
+        except (urllib.error.URLError, OSError) as e:
+            raise SystemExit(f"cannot reach Ollama at {self.host} ({e}). Start it with `ollama serve`.")
+        names = {m.get("name") for m in tags.get("models", [])} | {m.get("model") for m in tags.get("models", [])}
+        if self.model not in names and f"{self.model}:latest" not in names:
+            raise SystemExit(f"model {self.model!r} is not pulled. Run `ollama pull {self.model}` "
+                             f"(installed: {sorted(n for n in names if n)})")
+
+    def ask(self, image_jpeg, prompt, question=None):
+        options = {"num_predict": self.max_tokens, "seed": 0}
+        if self.temperature is not None:
+            options["temperature"] = self.temperature
+        reply = self._post("/api/chat", {
+            "model": self.model, "stream": False, "format": "json", "options": options,
+            "messages": [{"role": "user", "content": prompt,
+                          "images": [base64.b64encode(image_jpeg).decode()]}]})
+        return {"text": reply.get("message", {}).get("content", ""), "stop_reason": reply.get("done_reason"),
+                "usage": {"input_tokens": reply.get("prompt_eval_count"), "output_tokens": reply.get("eval_count")},
+                "response": {k: v for k, v in reply.items() if k != "context"}}
+
+
 class MockProvider:
     """A stand-in that needs no API: answers correctly most of the time, worse when rotated.
 
@@ -832,6 +884,13 @@ def run(args):
 def make_provider(args):
     if args.provider == "mock":
         return MockProvider(args.seed)
+    if args.provider == "ollama":
+        if not args.model:
+            sys.exit("--model is required for --provider ollama, e.g. --model qwen2.5vl:3b")
+        provider = OllamaProvider(args.model, args.ollama_host,
+                                  None if args.temperature == "omit" else float(args.temperature), args.max_tokens)
+        provider.check()
+        return provider
     if not args.model:
         sys.exit("--model is required for --provider anthropic (there is no default; see the docstring)")
     if not os.environ.get("ANTHROPIC_API_KEY") and not args.allow_profile_auth:
@@ -914,8 +973,9 @@ def main(argv=None):
     ap.add_argument("--rotations", type=int, nargs="+", default=list(ROTATIONS), choices=ROTATIONS)
     ap.add_argument("--max-edge", type=int, default=DEFAULT_MAX_EDGE, help="long side of the images sent, pixels")
     ap.add_argument("--seed", type=int, default=7)
-    ap.add_argument("--provider", choices=("anthropic", "mock"), default="anthropic")
+    ap.add_argument("--provider", choices=("anthropic", "ollama", "mock"), default="anthropic")
     ap.add_argument("--model", default=None, help="model id for the provider (required for a live run)")
+    ap.add_argument("--ollama-host", default=None, help="Ollama server (default: $OLLAMA_HOST or http://localhost:11434)")
     ap.add_argument("--temperature", default="0", help="sampling temperature, or 'omit' to not send one")
     ap.add_argument("--max-tokens", type=int, default=1024)
     ap.add_argument("--allow-profile-auth", action="store_true",

@@ -399,3 +399,58 @@ def test_temperature_omit_sends_no_temperature_and_a_rejected_temperature_stops_
 
     with pytest.raises(SystemExit, match="rejected temperature=0.0"):
         vlm.AnthropicProvider("x", temperature=0.0, client=_anthropic_with(reject)).ask(b"j", "p")
+
+
+# --- Ollama provider, against a throwaway local HTTP server ------------------------------------------
+
+def _fake_ollama(handler_body, models=("qwen2.5vl:3b",)):
+    import threading
+    from http.server import BaseHTTPRequestHandler, HTTPServer
+    seen = {}
+
+    class H(BaseHTTPRequestHandler):
+        def log_message(self, *a):
+            pass
+
+        def do_GET(self):
+            out = json.dumps({"models": [{"name": m, "model": m} for m in models]}).encode()
+            self.send_response(200); self.end_headers(); self.wfile.write(out)
+
+        def do_POST(self):
+            seen["body"] = json.loads(self.rfile.read(int(self.headers["Content-Length"])))
+            out = json.dumps(handler_body).encode()
+            self.send_response(200); self.end_headers(); self.wfile.write(out)
+
+    server = HTTPServer(("127.0.0.1", 0), H)
+    threading.Thread(target=server.serve_forever, daemon=True).start()
+    return server, seen
+
+
+def test_ollama_request_shape_and_reply_parsing():
+    import base64
+    server, seen = _fake_ollama({"message": {"role": "assistant", "content": '{"answer": "C", "confidence": 60}'},
+                                 "done_reason": "stop", "prompt_eval_count": 700, "eval_count": 9})
+    try:
+        p = vlm.OllamaProvider("qwen2.5vl:3b", host=f"127.0.0.1:{server.server_port}", temperature=0.0, max_tokens=64)
+        p.check()
+        reply = p.ask(b"\xff\xd8img", "the prompt")
+    finally:
+        server.shutdown()
+    body = seen["body"]
+    assert body["model"] == "qwen2.5vl:3b" and body["stream"] is False and body["format"] == "json"
+    assert body["options"]["temperature"] == 0.0 and body["options"]["num_predict"] == 64
+    msg = body["messages"][0]
+    assert msg["content"] == "the prompt" and base64.b64decode(msg["images"][0]) == b"\xff\xd8img"
+    assert reply["text"] == '{"answer": "C", "confidence": 60}'
+    assert reply["usage"] == {"input_tokens": 700, "output_tokens": 9}
+
+
+def test_ollama_check_explains_a_missing_model_and_a_dead_server():
+    server, _ = _fake_ollama({}, models=("llava:7b",))
+    try:
+        with pytest.raises(SystemExit, match="ollama pull qwen2.5vl:3b"):
+            vlm.OllamaProvider("qwen2.5vl:3b", host=f"127.0.0.1:{server.server_port}").check()
+    finally:
+        server.shutdown()
+    with pytest.raises(SystemExit, match="ollama serve"):
+        vlm.OllamaProvider("x", host="127.0.0.1:1").check()
