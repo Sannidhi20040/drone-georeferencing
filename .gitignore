@@ -22,3 +22,6 @@ public/models/*.pt
 
 # Local research datasets (large; licence restricts redistribution)
 data_check/
+
+# DA3 pilot output (derived CSV/lists; AU-AIR frames themselves must never be committed)
+pilot/output/
