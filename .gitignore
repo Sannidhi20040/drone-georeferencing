@@ -25,3 +25,6 @@ data_check/
 
 # DA3 pilot output (derived CSV/lists; AU-AIR frames themselves must never be committed)
 pilot/output/
+
+# Depth-model comparison: depth maps derived from AU-AIR frames (non-commercial licence; large)
+depth_comparison/output/depth_maps/
