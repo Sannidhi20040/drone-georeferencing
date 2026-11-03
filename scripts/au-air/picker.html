@@ -1,0 +1,196 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>AU-AIR landmark picker</title>
+<style>
+  body { margin: 0; font: 14px system-ui, sans-serif; background: #0f172a; color: #e2e8f0; display: flex; height: 100vh; }
+  #left { flex: 1; padding: 12px; overflow: auto; }
+  #right { width: 380px; background: #1e293b; padding: 12px; overflow: auto; }
+  canvas#view { cursor: crosshair; display: block; border: 1px solid #334155; max-width: 100%; }
+  canvas#loupe { border: 2px solid #a3e635; width: 160px; height: 160px; image-rendering: pixelated; }
+  button, input, select { background: #0f172a; color: #e2e8f0; border: 1px solid #475569; border-radius: 4px; padding: 5px 8px; font: inherit; }
+  button:hover { border-color: #a3e635; cursor: pointer; }
+  .row { display: flex; gap: 6px; align-items: center; margin: 6px 0; flex-wrap: wrap; }
+  .lm { border: 1px solid #334155; border-radius: 6px; padding: 8px; margin: 8px 0; }
+  .lm.active { border-color: #a3e635; }
+  .lm input.coord { width: 100%; box-sizing: border-box; margin-top: 4px; }
+  .obs { font-size: 12px; color: #94a3b8; }
+  .bad { color: #f87171; }
+  .ok { color: #a3e635; }
+  a { color: #38bdf8; }
+  h3 { margin: 10px 0 4px; }
+  small { color: #94a3b8; }
+</style>
+</head>
+<body>
+<div id="left">
+  <div class="row">
+    <button id="prev100">-100</button><button id="prev10">-10</button><button id="prev1">-1</button>
+    <input id="frameNo" type="number" min="0" value="0" style="width:80px">
+    <span id="frameCount"></span>
+    <button id="next1">+1</button><button id="next10">+10</button><button id="next100">+100</button>
+    <button id="randomFrame">random</button>
+  </div>
+  <div class="row"><small id="frameInfo"></small></div>
+  <canvas id="view"></canvas>
+  <div class="row"><small>Click to record the active landmark's pixel in this frame. Arrow keys step frames. The magnifier shows the exact pixel under the cursor.</small></div>
+</div>
+<div id="right">
+  <canvas id="loupe" width="160" height="160"></canvas>
+  <h3>Landmarks</h3>
+  <small>Pick sharp, flat, permanent points (lane-marking ends, kerb corners). Avoid cars and anything tall.
+  Paste the satellite coordinate as <code>lat, lon</code> (Google Maps: right-click the point, click the numbers to copy).</small>
+  <div class="row">
+    <button id="addLm">+ new landmark</button>
+    <button id="exportBtn">export landmarks.json</button>
+    <label><button id="importBtn">import</button><input id="importFile" type="file" accept=".json" hidden></label>
+  </div>
+  <div class="row"><a id="mapLink" target="_blank" rel="noopener">open this frame's drone position in Google Maps (satellite)</a></div>
+  <div id="status"></div>
+  <div id="list"></div>
+</div>
+
+<script>
+const BASE = location.pathname.split('scripts/au-air')[0];
+const CLIP = new URLSearchParams(location.search).get('clip') || '20190829091111';
+const STORE = `au-air-landmarks-${CLIP}`;
+const $ = id => document.getElementById(id);
+
+let frames = [];
+let current = 0;
+let state = { landmarks: [] };
+let active = null;
+let img = new Image();
+let scale = 1;
+
+try { state = JSON.parse(localStorage.getItem(STORE)) || state; } catch (e) { /* start empty */ }
+const save = () => { try { localStorage.setItem(STORE, JSON.stringify(state)); } catch (e) { /* private mode */ } };
+
+fetch(`${BASE}data_check/derived/${CLIP}.json`)
+  .then(r => { if (!r.ok) throw new Error(r.status); return r.json(); })
+  .then(d => { frames = d.frames; $('frameNo').max = frames.length - 1; $('frameCount').textContent = `/ ${frames.length - 1}`; show(0); render(); })
+  .catch(() => { $('status').innerHTML = '<span class="bad">Could not load data_check/derived/' + CLIP + '.json. Run: node scripts/au-air/prepare.mjs</span>'; });
+
+function show(i) {
+  current = Math.max(0, Math.min(frames.length - 1, i));
+  const f = frames[current];
+  $('frameNo').value = current;
+  $('frameInfo').textContent = `${f.image} | alt ${f.altitude.toFixed(1)} m | yaw ${f.yaw.toFixed(0)}° | roll ${f.rollDeg.toFixed(0)}° pitch ${f.pitchDeg.toFixed(0)}° | ${f.boxes.length} labelled objects`;
+  $('mapLink').href = `https://www.google.com/maps/@${f.lat},${f.lon},20z/data=!3m1!1e3`;
+  img = new Image();
+  img.onload = draw;
+  img.src = `${BASE}data_check/images/${f.image}`;
+}
+
+function draw() {
+  const c = $('view');
+  scale = Math.min(1, 1100 / img.naturalWidth);
+  c.width = Math.round(img.naturalWidth * scale);
+  c.height = Math.round(img.naturalHeight * scale);
+  const ctx = c.getContext('2d');
+  ctx.drawImage(img, 0, 0, c.width, c.height);
+  const image = frames[current].image;
+  state.landmarks.forEach(lm => lm.observations.filter(o => o.image === image).forEach(o => {
+    const x = o.x * scale, y = o.y * scale;
+    ctx.strokeStyle = lm.id === active ? '#a3e635' : '#fbbf24';
+    ctx.lineWidth = 2;
+    ctx.beginPath(); ctx.moveTo(x - 10, y); ctx.lineTo(x + 10, y); ctx.moveTo(x, y - 10); ctx.lineTo(x, y + 10); ctx.stroke();
+    ctx.fillStyle = ctx.strokeStyle; ctx.font = '13px sans-serif'; ctx.fillText(lm.id, x + 8, y - 8);
+  }));
+}
+
+$('view').addEventListener('click', e => {
+  if (!active) { $('status').innerHTML = '<span class="bad">Select or create a landmark first.</span>'; return; }
+  const r = $('view').getBoundingClientRect();
+  const x = Math.round(((e.clientX - r.left) * ($('view').width / r.width)) / scale);
+  const y = Math.round(((e.clientY - r.top) * ($('view').height / r.height)) / scale);
+  const lm = state.landmarks.find(l => l.id === active);
+  const image = frames[current].image;
+  lm.observations = lm.observations.filter(o => o.image !== image);
+  lm.observations.push({ image, x, y });
+  save(); draw(); render();
+});
+
+$('view').addEventListener('mousemove', e => {
+  const r = $('view').getBoundingClientRect();
+  const sx = (e.clientX - r.left) * ($('view').width / r.width) / scale;
+  const sy = (e.clientY - r.top) * ($('view').height / r.height) / scale;
+  const L = $('loupe').getContext('2d');
+  L.imageSmoothingEnabled = false;
+  L.clearRect(0, 0, 160, 160);
+  L.drawImage(img, sx - 10, sy - 10, 20, 20, 0, 0, 160, 160);
+  L.strokeStyle = '#ef4444'; L.beginPath(); L.moveTo(80, 0); L.lineTo(80, 160); L.moveTo(0, 80); L.lineTo(160, 80); L.stroke();
+});
+
+function parseCoord(text) {
+  const m = String(text).match(/(-?\d+(?:\.\d+)?)\s*[, ]\s*(-?\d+(?:\.\d+)?)/);
+  if (!m) return null;
+  const lat = parseFloat(m[1]), lon = parseFloat(m[2]);
+  return Math.abs(lat) <= 90 && Math.abs(lon) <= 180 ? { lat, lon } : null;
+}
+
+function render() {
+  const list = $('list');
+  list.textContent = '';
+  state.landmarks.forEach(lm => {
+    const box = document.createElement('div');
+    box.className = 'lm' + (lm.id === active ? ' active' : '');
+    const head = document.createElement('div'); head.className = 'row';
+    const pick = document.createElement('button'); pick.textContent = lm.id === active ? `● ${lm.id}` : `○ ${lm.id}`;
+    pick.onclick = () => { active = lm.id; render(); draw(); };
+    const name = document.createElement('input'); name.value = lm.name || ''; name.placeholder = 'description'; name.style.flex = '1';
+    name.onchange = () => { lm.name = name.value; save(); };
+    const del = document.createElement('button'); del.textContent = '✕';
+    del.onclick = () => { if (confirm(`Delete ${lm.id}?`)) { state.landmarks = state.landmarks.filter(l => l !== lm); if (active === lm.id) active = null; save(); render(); draw(); } };
+    head.append(pick, name, del);
+    const coord = document.createElement('input'); coord.className = 'coord'; coord.placeholder = 'satellite lat, lon';
+    coord.value = Number.isFinite(lm.lat) ? `${lm.lat}, ${lm.lon}` : '';
+    coord.onchange = () => { const p = parseCoord(coord.value); if (p) { lm.lat = p.lat; lm.lon = p.lon; } else { delete lm.lat; delete lm.lon; } save(); render(); };
+    const obs = document.createElement('div'); obs.className = 'obs';
+    obs.textContent = lm.observations.length
+      ? lm.observations.map(o => `${o.image.match(/_(\d+)\.jpg/)[1]} (${o.x},${o.y})`).join('  ·  ')
+      : 'no observations yet';
+    box.append(head, coord, obs);
+    list.append(box);
+  });
+  const ready = state.landmarks.filter(l => Number.isFinite(l.lat) && l.observations.length);
+  const shared = new Set();
+  const byImage = {};
+  ready.forEach(l => l.observations.forEach(o => (byImage[o.image] = byImage[o.image] || new Set()).add(l.id)));
+  Object.values(byImage).forEach(s => { const ids = [...s].sort(); for (let i = 0; i < ids.length; i++) for (let j = i + 1; j < ids.length; j++) shared.add(ids[i] + '|' + ids[j]); });
+  $('status').innerHTML =
+    `<span class="${ready.length >= 6 ? 'ok' : 'bad'}">${ready.length} usable landmarks</span> (aim for 6-10) · ` +
+    `<span class="${shared.size >= 3 ? 'ok' : 'bad'}">${shared.size} landmark pairs seen together in one frame</span>` +
+    `<br><small>Pair distances need landmarks picked in the same frame; the FOV calibration uses them.</small>`;
+}
+
+$('addLm').onclick = () => {
+  const n = state.landmarks.reduce((m, l) => Math.max(m, parseInt(l.id.slice(1)) || 0), 0) + 1;
+  state.landmarks.push({ id: 'L' + n, name: '', observations: [] });
+  active = 'L' + n; save(); render();
+};
+$('exportBtn').onclick = () => {
+  const blob = new Blob([JSON.stringify({ clip: CLIP, landmarks: state.landmarks }, null, 2)], { type: 'application/json' });
+  const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = 'landmarks.json'; a.click();
+  setTimeout(() => URL.revokeObjectURL(a.href), 1000);
+};
+$('importBtn').onclick = () => $('importFile').click();
+$('importFile').onchange = async e => {
+  const file = e.target.files[0]; if (!file) return;
+  try { state = { landmarks: JSON.parse(await file.text()).landmarks || [] }; save(); render(); draw(); }
+  catch (err) { $('status').innerHTML = '<span class="bad">That file is not a landmarks.json.</span>'; }
+};
+
+[['prev100', -100], ['prev10', -10], ['prev1', -1], ['next1', 1], ['next10', 10], ['next100', 100]]
+  .forEach(([id, d]) => $(id).onclick = () => show(current + d));
+$('randomFrame').onclick = () => show(Math.floor(Math.random() * frames.length));
+$('frameNo').onchange = e => show(parseInt(e.target.value) || 0);
+document.addEventListener('keydown', e => {
+  if (e.target.tagName === 'INPUT') return;
+  if (e.key === 'ArrowRight') show(current + 1);
+  if (e.key === 'ArrowLeft') show(current - 1);
+});
+</script>
+</body>
+</html>

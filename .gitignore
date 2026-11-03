@@ -1,6 +1,5 @@
 # Dependencies
 node_modules/
-package-lock.json
 
 # Build outputs
 dist/
@@ -20,3 +19,16 @@ public/models/*.pt
 
 # Environment
 .env
+
+# Local research datasets (large; licence restricts redistribution)
+data_check/
+
+# DA3 pilot output (derived CSV/lists; AU-AIR frames themselves must never be committed)
+pilot/output/
+
+# Depth-model comparison: depth maps derived from AU-AIR frames (non-commercial licence; large)
+depth_comparison/output/depth_maps/
+
+# Sunday checks: crops rendered from AU-AIR frames (non-commercial licence) and Python bytecode
+sunday_checks/output/step4_images/
+__pycache__/

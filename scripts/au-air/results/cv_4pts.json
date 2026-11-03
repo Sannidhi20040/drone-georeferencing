@@ -1,0 +1,77 @@
+{
+  "clip": "20190829091111",
+  "gps": "smoothed",
+  "landmarks": 4,
+  "cv": {
+    "folds": [
+      {
+        "calibration": [
+          "L1",
+          "L2"
+        ],
+        "fov": 85.75,
+        "headingOffset": -12.5,
+        "absoluteMedian": 1.2368311496074138,
+        "relativePctMedian": 2.129853947974003,
+        "tested": 2
+      },
+      {
+        "calibration": [
+          "L1",
+          "L3"
+        ],
+        "fov": 92,
+        "headingOffset": -6.5,
+        "absoluteMedian": 1.6607901915027061,
+        "relativePctMedian": 17.44785538584352,
+        "tested": 2
+      },
+      {
+        "calibration": [
+          "L1",
+          "L4"
+        ],
+        "fov": 79,
+        "headingOffset": -6.5,
+        "absoluteMedian": 1.2766110908251664,
+        "relativePctMedian": 2.8048083937293296,
+        "tested": 2
+      },
+      {
+        "calibration": [
+          "L2",
+          "L3"
+        ],
+        "fov": 77.5,
+        "headingOffset": 12,
+        "absoluteMedian": 1.8216019888379114,
+        "relativePctMedian": 2.4559372907114168,
+        "tested": 2
+      },
+      {
+        "calibration": [
+          "L2",
+          "L4"
+        ],
+        "fov": 82.75,
+        "headingOffset": -10,
+        "absoluteMedian": 1.2430363496767782,
+        "relativePctMedian": 15.031493461325919,
+        "tested": 2
+      },
+      {
+        "calibration": [
+          "L3",
+          "L4"
+        ],
+        "fov": 87,
+        "headingOffset": 4.5,
+        "absoluteMedian": 1.514529083431411,
+        "relativePctMedian": 2.0754956606938695,
+        "tested": 2
+      }
+    ],
+    "absoluteMedianOfMedians": 1.3955700871282888,
+    "relativePctMedianOfMedians": 2.630372842220373
+  }
+}

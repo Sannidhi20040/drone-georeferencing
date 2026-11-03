@@ -14,7 +14,10 @@ export class ExportUtils {
                 distanceFromDrone: det.distanceFromDrone,
                 bearing: det.bearing,
                 frame: det.frame,
-                timestamp: det.timestamp
+                timestamp: det.timestamp,
+                trackId: det.trackId ?? null,
+                speedMps: det.speed ?? null,
+                simulated: Boolean(det.simulated)
             }
         }));
         
@@ -38,7 +41,7 @@ export class ExportUtils {
     }
     
     static toCSV(detections) {
-        const headers = ['id', 'class', 'latitude', 'longitude', 'confidence', 'count', 'distance_m', 'bearing_deg'];
+        const headers = ['id', 'class', 'latitude', 'longitude', 'confidence', 'count', 'distance_m', 'bearing_deg', 'track_id', 'speed_mps', 'simulated'];
         const rows = detections.map((det, idx) => [
             idx,
             det.class,
@@ -47,7 +50,10 @@ export class ExportUtils {
             det.confidence.toFixed(3),
             det.count || 1,
             det.distanceFromDrone.toFixed(2),
-            det.bearing.toFixed(2)
+            det.bearing.toFixed(2),
+            det.trackId ?? '',
+            det.speed !== undefined ? det.speed.toFixed(2) : '',
+            Boolean(det.simulated)
         ]);
         
         return [headers, ...rows]

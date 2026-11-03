@@ -1,0 +1,14 @@
+model,setting,n,median_pct_error,min_pct_error,max_pct_error,slope_m_per_m,pearson_r,pearson_p,spearman_rho,spearman_p,median_est_over_log
+DA3-Metric-Large (earlier run),"camera given, 80 deg diag (72.4 deg H)",30,-56.40,-72.89,-42.81,0.1322,0.3442,0.0625,0.4127,0.0234,0.4360
+UniDepthV2 (ViT-L),"camera given, 80 deg diag (72.4 deg H)",30,-9.87,-23.22,72.09,1.0066,0.5921,0.0006,0.5395,0.0021,0.9013
+UniDepthV2 (ViT-L),no camera (model guesses),30,-17.24,-29.80,68.48,0.8664,0.5291,0.0026,0.5039,0.0045,0.8276
+UniDepthV2 (ViT-L),"camera given, 71 deg diag (63.7 deg H)",30,-3.60,-17.63,82.93,1.0769,0.5974,0.0005,0.5395,0.0021,0.9640
+UniDepthV2 (ViT-L),"camera given, 94 deg diag (86.1 deg H)",30,-19.23,-31.38,54.99,0.8993,0.5860,0.0007,0.5395,0.0021,0.8077
+MoGe-2 (ViT-L normal),"camera given, 80 deg diag (72.4 deg H)",30,-22.98,-35.00,-2.19,0.8439,0.8848,0.0000,0.7531,0.0000,0.7702
+MoGe-2 (ViT-L normal),no camera (model guesses),30,-30.67,-43.12,-10.44,0.7181,0.8778,0.0000,0.7268,0.0000,0.6933
+MoGe-2 (ViT-L normal),"camera given, 71 deg diag (63.7 deg H)",30,-11.18,-26.19,15.02,0.9544,0.8714,0.0000,0.7651,0.0000,0.8882
+MoGe-2 (ViT-L normal),"camera given, 94 deg diag (86.1 deg H)",30,-36.86,-49.13,-23.37,0.7158,0.9049,0.0000,0.7833,0.0000,0.6314
+MoGe2-Aerial (LoRA),"camera given, 80 deg diag (72.4 deg H)",30,5.02,-14.01,52.58,1.2185,0.7564,0.0000,0.6303,0.0002,1.0502
+MoGe2-Aerial (LoRA),no camera (model guesses),30,4.51,-16.09,59.45,1.0858,0.7164,0.0000,0.5666,0.0011,1.0451
+MoGe2-Aerial (LoRA),"camera given, 71 deg diag (63.7 deg H)",30,20.75,-1.82,79.38,1.3696,0.7347,0.0000,0.5996,0.0005,1.2075
+MoGe2-Aerial (LoRA),"camera given, 94 deg diag (86.1 deg H)",30,-13.96,-30.91,19.63,1.0445,0.7946,0.0000,0.6623,0.0001,0.8604

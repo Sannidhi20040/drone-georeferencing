@@ -30,7 +30,7 @@ describe('FlightLogParser', () => {
             const result = parser.processData(rows);
 
             expect(result).toEqual([
-                { timestamp: 0, lat: 12.9716, lon: 77.5946, altitude: 100, heading: 30, isVideo: 1 }
+                { timestamp: 0, lat: 12.9716, lon: 77.5946, altitude: 100, heading: 30, gimbalPitch: null, isVideo: 1 }
             ]);
         });
 
@@ -40,6 +40,45 @@ describe('FlightLogParser', () => {
             const result = parser.processData(rows);
 
             expect(result[0].heading).toBe(0);
+        });
+
+        it('drops rows with a blank altitude/heading cell instead of admitting NaN', () => {
+            const rows = [
+                { time: 0, latitude: 12.9716, longitude: 77.5946, altitude: 100, heading: 45 },
+                { time: 1, latitude: 12.98, longitude: 77.59, altitude: '', heading: 50 }, // blank altitude
+                { time: 2, latitude: 12.99, longitude: 77.6, altitude: 110, heading: '' }  // blank heading
+            ];
+
+            const result = parser.processData(rows);
+
+            expect(result).toHaveLength(1);
+            expect(result.some(e => isNaN(e.altitude) || isNaN(e.heading))).toBe(false);
+        });
+
+        it('reads gimbal pitch from common column names and leaves it null otherwise', () => {
+            const rows = [
+                { time: 0, latitude: 1, longitude: 2, altitude: 10, gimbalPitch: -45 },
+                { time: 1, latitude: 1, longitude: 2, altitude: 10, gimbal_pitch: -30 },
+                { time: 2, latitude: 1, longitude: 2, altitude: 10, 'gimbal.pitch': -60 },
+                { time: 3, latitude: 1, longitude: 2, altitude: 10, gimbalPitch: '' },
+                { time: 4, latitude: 1, longitude: 2, altitude: 10 }
+            ];
+
+            const result = parser.processData(rows);
+
+            expect(result.map(e => e.gimbalPitch)).toEqual([-45, -30, -60, null, null]);
+        });
+
+        it('sorts entries by timestamp regardless of CSV row order', () => {
+            const rows = [
+                { time: 2, latitude: 12.99, longitude: 77.6, altitude: 110, heading: 0 },
+                { time: 0, latitude: 12.9716, longitude: 77.5946, altitude: 100, heading: 0 },
+                { time: 1, latitude: 12.98, longitude: 77.59, altitude: 105, heading: 0 }
+            ];
+
+            const result = parser.processData(rows);
+
+            expect(result.map(e => e.timestamp)).toEqual([0, 1, 2]);
         });
     });
 
@@ -67,6 +106,17 @@ describe('FlightLogParser', () => {
         it('interpolates heading across the shorter angular path (350deg -> 10deg through 0, not 180)', () => {
             const result = parser.getTelemetryAtTime(0.5);
             expect(result.heading).toBeCloseTo(0, 6);
+        });
+
+        it('interpolates gimbal pitch, and uses whichever neighbour has a value', () => {
+            parser.telemetryData = parser.processData([
+                { time: 0, latitude: 10, longitude: 20, altitude: 100, gimbalPitch: -90 },
+                { time: 1, latitude: 12, longitude: 24, altitude: 120, gimbalPitch: -50 },
+                { time: 2, latitude: 13, longitude: 25, altitude: 120 }
+            ]);
+
+            expect(parser.getTelemetryAtTime(0.5).gimbalPitch).toBeCloseTo(-70, 6);
+            expect(parser.getTelemetryAtTime(1.5).gimbalPitch).toBeCloseTo(-50, 6);
         });
 
         it('clamps to the last sample when the timestamp is past the end of the log', () => {
