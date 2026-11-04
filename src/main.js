@@ -13,12 +13,17 @@ let validationLayers = [];
 document.addEventListener('DOMContentLoaded', () => {
     console.log('✅ DOM loaded');
 
-    map = L.map('map').setView([12.9716, 77.5946], 13);
+    map = L.map('map', { zoomControl: false }).setView([12.9716, 77.5946], 13);
+    L.control.zoom({ position: 'topright' }).addTo(map);
 
-    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-        attribution: '© OpenStreetMap contributors',
-        maxZoom: 19
-    }).addTo(map);
+    // Same free OpenStreetMap tiles twice: one restyled dark (CSS filter, see index.html) so the coloured
+    // detections stand out, one plain. No API key needed.
+    const osmUrl = 'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png';
+    const osmAttribution = '© OpenStreetMap contributors';
+    const dark = L.tileLayer(osmUrl, { attribution: osmAttribution, maxZoom: 19, className: 'map-tiles-dark' });
+    const streets = L.tileLayer(osmUrl, { attribution: osmAttribution, maxZoom: 19 });
+    dark.addTo(map);
+    L.control.layers({ 'Dark': dark, 'Streets': streets }, null, { position: 'topright', collapsed: true }).addTo(map);
 
     addLegend(map);
     console.log('✅ Map initialized');
@@ -67,6 +72,7 @@ function setupEventListeners() {
         if (e.target.files.length > 0) {
             videoFile = e.target.files[0];
             videoFileName.textContent = `✅ ${videoFile.name}`;
+            videoFileName.classList.add('selected');
             checkInputs();
         }
     });
@@ -75,6 +81,7 @@ function setupEventListeners() {
         if (e.target.files.length > 0) {
             flightLogFile = e.target.files[0];
             logFileName.textContent = `✅ ${flightLogFile.name}`;
+            logFileName.classList.add('selected');
             checkInputs();
         }
     });
@@ -83,6 +90,7 @@ function setupEventListeners() {
         if (e.target.files.length > 0) {
             groundTruthFile = e.target.files[0];
             groundTruthFileName.textContent = `✅ ${groundTruthFile.name}`;
+            groundTruthFileName.classList.add('selected');
         }
     });
 
